@@ -317,12 +317,16 @@ app.get('/status/:userId', requireApiKeyStrict, (req, res) => {
 // cents because the card already works in cents. We answer with a plain
 // approved boolean and a human readable reason the card can log.
 app.post('/check', requireApiKey, (req, res) => {
-  const { amount, merchant, reference } = req.body || {};
+  const { amount, amountRands, merchant, reference } = req.body || {};
   const user = userForCard();
 
   resetWeekIfNeeded(user);
 
-  const cents = Math.round(Number(amount) || 0);
+  // the card sends amount in cents. allow amountRands too so a human poking the
+  // endpoint by hand does not silently send nothing and get a free approve.
+  const cents = amount != null
+    ? Math.round(Number(amount) || 0)
+    : Math.round((Number(amountRands) || 0) * 100);
   // subtract spends already approved this instant but not yet settled, so two
   // taps in the same blink cannot both spend the last of the weekly release
   const remaining = user.weeklyRelease - user.spentThisWeek - heldCents(user);
@@ -410,9 +414,10 @@ app.post('/poll', requireApiKeyStrict, async (req, res) => {
   for (const t of transactions) {
     if (String(t.type).toUpperCase() !== 'CREDIT') continue;
 
-    // build a stable-ish key so a re-poll of the same window does not
-    // count the same payout twice
-    const key = `${t.transactionDate || t.postingDate || ''}|${t.description || ''}|${t.amount}`;
+    // build a stable-ish key so a re-poll of the same window does not count the
+    // same payout twice. prefer a real id; otherwise include runningBalance so
+    // two identical same day credits do not collapse into one.
+    const key = t.uuid || `${t.transactionDate || t.postingDate || ''}|${t.description || ''}|${t.amount}|${t.runningBalance ?? ''}`;
     if (user.seenTxns.has(key)) continue;
     user.seenTxns.add(key);
 

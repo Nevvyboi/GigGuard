@@ -316,7 +316,18 @@ Pull real sandbox transactions instead of simulating:
 curl -X POST localhost:3000/poll \
   -H 'content-type: application/json' \
   -H 'x-api-key: your-gigguard-api-key' \
-  -d '{"userId":"demo"}'
+  -d '{"userId":"demo","fromDate":"2026-03-01","toDate":"2026-06-01"}'
+```
+
+Try a card check the way the `beforeTransaction` hook would. The hook sends
+`amount` in cents, but you can pass `amountRands` by hand. A spend over the
+weekly release comes back declined:
+
+```
+curl -X POST localhost:3000/check \
+  -H 'content-type: application/json' \
+  -H 'x-api-key: your-gigguard-api-key' \
+  -d '{"amountRands": 7467.83, "merchant": "Game"}'
 ```
 
 ### 3. Card IDE
