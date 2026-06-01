@@ -209,8 +209,10 @@ In the Investec programmable banking card IDE:
 ### 4. Dashboard
 
 Open `frontend/dashboard.html` in a browser. It is fully self contained and
-needs no server. Use the sliders and buttons to run income and spending and
-watch the buffer, the weekly arc, and the runway respond.
+needs no server. The dashboard is laid out like a weekly statement: one big
+"available to spend this week" figure on a paper card, with the buffer, the
+weekly release meter, and the runway responding live as you simulate income
+and card taps with the sliders and buttons.
 
 When a spend goes over the weekly release, the card declines it and a red
 notice appears:

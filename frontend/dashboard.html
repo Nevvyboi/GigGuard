@@ -6,378 +6,334 @@
 <title>GigGuard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&display=swap" rel="stylesheet" />
 <style>
   :root {
-    --bg: #0a0c0f;
-    --surface: #111318;
-    --border: #1e2228;
-    --text: #e8eaf0;
-    --muted: #5a6070;
-    --green: #00e87a;
-    --danger: #ff4d5e;
-    --warn: #f5a623;
-    --blue: #4d9fff;
+    /* one dominant colour (deep pine), warm paper, a single gold accent.
+       gold has one job: it marks money set aside or coming in. neutral UI
+       stays cream. terracotta is the only other chromatic signal, and only
+       for a decline. */
+    --canvas: #0f231b;
+    --canvas-deep: #0a1812;
+    --paper: #efe6d2;
+    --paper-2: #e7dcc4;
+    --ink: #142219;
+    --cream: #ece3cf;
+    --muted: #9aab9c;
+    --muted-ink: #5c6b5c;
+    --line: rgba(236, 227, 207, 0.13);
+    --line-strong: rgba(236, 227, 207, 0.26);
+    --line-ink: rgba(20, 34, 25, 0.24);
+    --gold: #e6b24a;
+    --gold-soft: #d8a23a;
+    --terra: #d9573c;
+
+    /* an 8px spacing scale, used everywhere instead of eyeballed numbers */
+    --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
+  html { background: var(--canvas-deep); }
+
   body {
-    background: var(--bg);
-    color: var(--text);
+    background: radial-gradient(120% 80% at 50% -10%, #143026 0%, var(--canvas) 42%, var(--canvas-deep) 100%);
+    color: var(--cream);
     font-family: 'DM Mono', ui-monospace, monospace;
-    line-height: 1.5;
+    font-size: 14px;
+    line-height: 1.55;
+    font-feature-settings: "zero" 1; /* slashed zero, tabular by nature in a mono */
     -webkit-font-smoothing: antialiased;
-    padding: 28px 20px 60px;
+    min-height: 100vh;
+    padding: var(--s7) var(--s5) 64px;
   }
 
-  .wrap { max-width: 1180px; margin: 0 auto; }
+  .wrap { max-width: 1140px; margin: 0 auto; }
 
-  h1, h2, h3, .display { font-family: 'Syne', sans-serif; letter-spacing: -0.01em; }
+  /* serif for display and the one big figure, mono for everything that is data */
+  h1, h2, h3, .figure { font-family: 'Fraunces', Georgia, serif; font-weight: 500; letter-spacing: -0.01em; font-optical-sizing: auto; }
+  h1, .figure { font-variation-settings: "opsz" 144; }
+  h3 { font-variation-settings: "opsz" 32; }
 
-  /* ---- top bar ---- */
-  .topbar {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 28px;
-    flex-wrap: wrap;
-  }
-  .logomark {
-    width: 36px; height: 36px;
-    background: var(--green);
-    color: #06150c;
-    border-radius: 9px;
+  /* tracked caps is reserved for exactly three places: the masthead kicker,
+     the hero eyebrow, and the sandbox tag. nowhere else. */
+  .kicker, .hero-eyebrow, .tag { font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+
+  /* ---------- masthead, set like a statement nameplate ---------- */
+  .masthead { display: flex; align-items: flex-end; gap: var(--s4); }
+  .shield { flex: none; }
+  .wordmark .kicker { display: block; margin-bottom: var(--s1); }
+  .wordmark h1 { font-size: 40px; font-weight: 600; line-height: 0.9; color: var(--cream); }
+  .wordmark h1 .dot { color: var(--gold); }
+  .mast-right { margin-left: auto; text-align: right; align-self: flex-start; padding-top: 2px; }
+  .tag { display: inline-block; border: 1px solid var(--line-strong); color: var(--gold); padding: 6px 12px; border-radius: 2px; letter-spacing: 0.2em; }
+  .issue { margin-top: var(--s3); font-size: 12px; color: var(--cream); }
+  .issue .muted { color: var(--muted); }
+  .issue-date { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .rule { height: 1px; background: var(--line); margin: var(--s5) 0; }
+
+  /* ---------- hero statement ---------- */
+  .hero {
+    background: linear-gradient(180deg, var(--paper) 0%, var(--paper-2) 100%);
+    color: var(--ink);
+    border-radius: 4px;
     display: grid;
-    place-items: center;
-    font-family: 'Syne', sans-serif;
-    font-weight: 800;
-    font-size: 22px;
-    box-shadow: 0 0 24px rgba(0, 232, 122, 0.35);
-  }
-  .brand { display: flex; flex-direction: column; }
-  .brand .name { font-size: 21px; font-weight: 800; line-height: 1.1; }
-  .brand .tag { color: var(--muted); font-size: 12px; }
-  .badge {
-    margin-left: auto;
-    border: 1px solid var(--warn);
-    color: var(--warn);
-    font-size: 11px;
-    letter-spacing: 0.14em;
-    padding: 6px 11px;
-    border-radius: 999px;
-    text-transform: uppercase;
-  }
-
-  /* ---- stat cards ---- */
-  .stats {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 14px;
-    margin-bottom: 18px;
-  }
-  .stat {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-top: 2px solid var(--accent, var(--border));
-    border-radius: 12px;
-    padding: 16px 16px 18px;
-  }
-  .stat .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; }
-  .stat .value { font-size: 27px; margin-top: 8px; font-weight: 500; }
-  .stat .sub { color: var(--muted); font-size: 11px; margin-top: 4px; }
-  .stat.green { --accent: var(--green); }
-  .stat.green .value { color: var(--green); }
-  .stat.warn { --accent: var(--warn); }
-  .stat.warn .value { color: var(--warn); }
-  .stat.danger { --accent: var(--danger); }
-  .stat.danger .value { color: var(--danger); }
-  .stat.blue { --accent: var(--blue); }
-  .stat.blue .value { color: var(--blue); }
-  .rand { font-size: 17px; opacity: 0.6; margin-right: 1px; }
-
-  /* ---- layout ---- */
-  .main { display: grid; grid-template-columns: 1fr 360px; gap: 18px; align-items: start; }
-  .col { display: flex; flex-direction: column; gap: 18px; }
-
-  .panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 18px;
-  }
-  .panel h3 { font-size: 14px; margin-bottom: 4px; }
-  .panel .hint { color: var(--muted); font-size: 11px; margin-bottom: 14px; }
-
-  /* ---- allocation bar ---- */
-  .allocbar {
-    height: 22px;
-    border-radius: 7px;
-    background: #182b22;
+    grid-template-columns: 1.7fr 1fr; /* deliberately not the body grid's seam */
     overflow: hidden;
-    display: flex;
+    box-shadow: 0 30px 60px -30px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.4);
   }
-  .allocbar .fill { background: var(--green); height: 100%; transition: width 0.5s ease; }
-  .alloclabels { display: flex; justify-content: space-between; margin-top: 10px; font-size: 12px; }
-  .alloclabels .muted { color: var(--muted); }
+  .hero-main { padding: var(--s7) 40px; display: flex; flex-direction: column; justify-content: center; }
+  .hero-eyebrow { color: var(--muted-ink); }
+  .figure { font-size: clamp(58px, 8.5vw, 88px); line-height: 0.9; color: var(--ink); margin: var(--s4) 0 30px; font-weight: 500; letter-spacing: -0.03em; }
+  .figure .cur { font-size: 0.58em; letter-spacing: 0; margin-right: 8px; color: var(--muted-ink); }
+  .hero-meter { height: 6px; border-radius: 99px; background: rgba(20,34,25,0.12); overflow: hidden; max-width: 460px; }
+  .hero-meter span { display: block; height: 100%; width: 0; background: var(--ink); transition: width 0.55s cubic-bezier(.2,.7,.2,1), background 0.3s ease; }
+  .hero-used { margin-top: var(--s3); font-size: 12px; color: var(--muted-ink); }
 
-  /* ---- arc + pips row ---- */
-  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-  @media (max-width: 1080px) { .row2 { grid-template-columns: 1fr; } }
+  .hero-vitals { border-left: 1px solid var(--line-ink); padding: 40px 36px; display: flex; flex-direction: column; justify-content: center; }
+  .vital { display: flex; align-items: baseline; justify-content: space-between; padding: var(--s3) 0; border-bottom: 1px solid var(--line-ink); }
+  .vital:last-child { border-bottom: none; }
+  .vital-label { font-size: 12px; color: var(--muted-ink); }
+  .vital-value { font-size: 19px; color: var(--ink); font-weight: 500; }
 
-  .arcwrap { position: relative; width: 220px; max-width: 100%; margin: 6px auto 0; }
-  .arcwrap svg { width: 100%; height: auto; display: block; }
-  .arc-track { fill: none; stroke: #1c2530; stroke-width: 16; stroke-linecap: round; }
-  .arc-value { fill: none; stroke: var(--green); stroke-width: 16; stroke-linecap: round; transition: stroke-dashoffset 0.6s ease, stroke 0.3s ease; }
-  .arc-center {
-    position: absolute; left: 0; right: 0; bottom: 6px;
-    text-align: center;
+  /* ---------- perforation, the tear-off between summary and detail ---------- */
+  .tear { height: 28px; margin: var(--s2) 0 var(--s4); position: relative; }
+  /* the perforation dots, inset so they sit between the two tear-strip ends */
+  .tear::before {
+    content: ''; position: absolute; left: 22px; right: 22px; top: 50%; height: 6px; transform: translateY(-50%);
+    background-image: radial-gradient(circle at 3px 50%, var(--line-strong) 1.5px, transparent 1.9px);
+    background-size: 12px 6px; background-repeat: repeat-x;
   }
-  .arc-center .pct { font-size: 30px; font-family: 'Syne', sans-serif; font-weight: 800; line-height: 1; }
-  .arc-center .cap { color: var(--muted); font-size: 11px; margin-top: 2px; }
-  .arc-foot { text-align: center; color: var(--muted); font-size: 12px; margin-top: 10px; }
-
-  /* ---- pips ---- */
-  .pips { display: grid; grid-template-columns: repeat(8, 1fr); gap: 7px; margin-top: 6px; }
-  .pip {
-    aspect-ratio: 1;
-    border-radius: 5px;
-    background: #161b22;
-    border: 1px solid var(--border);
-    display: grid; place-items: center;
-    font-size: 9px; color: var(--muted);
-    transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
-  }
-  .pip.on { background: var(--green); color: #06150c; border-color: var(--green); }
-  .pip.low { background: var(--warn); color: #1b1304; border-color: var(--warn); }
-  .pips-foot { color: var(--muted); font-size: 12px; margin-top: 12px; }
-
-  /* ---- controls ---- */
-  label.field { display: block; font-size: 12px; color: var(--muted); margin-bottom: 7px; }
-  .slider-head { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px; }
-  .slider-head b { font-weight: 500; }
-  .slider-val { color: var(--green); font-weight: 500; }
-  input[type="range"] {
-    width: 100%; height: 5px; -webkit-appearance: none; appearance: none;
-    background: #222833; border-radius: 999px; outline: none; margin-bottom: 18px;
-  }
-  input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none; appearance: none;
-    width: 17px; height: 17px; border-radius: 50%;
-    background: var(--green); cursor: pointer; border: 3px solid #0a0c0f;
-    box-shadow: 0 0 0 1px var(--green);
-  }
-  input[type="range"]::-moz-range-thumb {
-    width: 14px; height: 14px; border-radius: 50%;
-    background: var(--green); cursor: pointer; border: 3px solid #0a0c0f;
+  /* the rounded ends of the tear-off strip, so the hero reads as detachable */
+  .tear::after {
+    content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 15px; transform: translateY(-50%);
+    background:
+      radial-gradient(circle at left center, var(--canvas-deep) 7px, transparent 7.5px) left center / 15px 15px no-repeat,
+      radial-gradient(circle at right center, var(--canvas-deep) 7px, transparent 7.5px) right center / 15px 15px no-repeat;
   }
 
-  input[type="number"] {
-    width: 100%; background: #0c0e12; border: 1px solid var(--border);
-    color: var(--text); font-family: inherit; font-size: 15px;
-    padding: 11px 13px; border-radius: 9px; outline: none;
-  }
-  input[type="number"]:focus { border-color: var(--green); }
+  /* ---------- body: airy read-outs on the left, contained tools on the right ---------- */
+  .cols { display: grid; grid-template-columns: 1.5fr 1fr; gap: 40px; align-items: start; }
+  .col-readout { display: flex; flex-direction: column; gap: var(--s7); }
+  .col-controls { display: flex; flex-direction: column; gap: var(--s5); }
 
-  .btn {
-    width: 100%; border: none; cursor: pointer;
-    font-family: inherit; font-size: 14px; font-weight: 500;
-    padding: 12px; border-radius: 9px; margin-top: 10px;
-    transition: filter 0.15s ease, transform 0.05s ease;
-  }
+  /* left read-outs have no box. a numbered rule heads each one. */
+  .section-head { display: flex; align-items: baseline; gap: var(--s3); padding-bottom: var(--s3); margin-bottom: var(--s5); border-bottom: 1px solid var(--line); }
+  .sec-no { font-size: 11px; color: var(--muted); letter-spacing: 0.1em; }
+  .section-head h3 { font-size: 19px; color: var(--cream); }
+
+  /* right controls are contained cards, the only boxed thing on the page */
+  .panel { border: 1px solid var(--line); border-radius: 5px; padding: var(--s5); }
+  .panel-title { font-size: 17px; color: var(--cream); margin-bottom: var(--s5); }
+
+  /* allocation split */
+  .split { height: 12px; display: flex; border-radius: 3px; overflow: hidden; background: rgba(236,227,207,0.06); }
+  .split .seg-buf { background: var(--gold); transition: width 0.55s cubic-bezier(.2,.7,.2,1); }
+  .split .seg-spend { background: rgba(236,227,207,0.20); transition: width 0.55s cubic-bezier(.2,.7,.2,1); }
+  .split-legend { display: flex; justify-content: space-between; margin-top: var(--s4); font-size: 12.5px; color: var(--cream); }
+  .split-legend b { font-weight: 500; }
+  .split-legend .muted { color: var(--muted); }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 8px; vertical-align: 1px; }
+  .dot.gold { background: var(--gold); }
+  .dot.faint { background: rgba(236,227,207,0.22); }
+
+  /* runway, a ruler where the labels actually sit under their ticks */
+  .ruler { display: grid; grid-template-columns: repeat(16, 1fr); gap: 5px; align-items: end; }
+  .rcol { display: flex; flex-direction: column; align-items: center; gap: var(--s2); }
+  .tick { width: 100%; height: 7px; border-radius: 2px; background: rgba(236,227,207,0.08); transition: height 0.4s ease, background 0.4s ease; }
+  .tick.on { height: 44px; background: var(--paper); }       /* runway is neutral, not gold */
+  .tick.on.low { background: var(--terra); }
+  .rlab { font-size: 10px; color: var(--muted); height: 12px; line-height: 12px; }
+  .note { margin-top: var(--s4); font-size: 12px; color: var(--muted); }
+
+  /* ledger, set like statement lines */
+  .ledger { max-height: 320px; overflow-y: auto; margin: 0 -2px; padding: 0 2px; }
+  .ledger .empty { color: var(--muted); font-size: 12.5px; padding: 30px 0; }
+  .row { display: grid; grid-template-columns: 1fr auto 84px; align-items: baseline; gap: var(--s4); padding: var(--s3) 0; border-bottom: 1px solid var(--line); }
+  .row:last-child { border-bottom: none; }
+  .row-main { min-width: 0; }
+  .row-merchant { display: block; font-size: 13.5px; color: var(--cream); }
+  .row-note { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .row-amt { font-size: 13.5px; white-space: nowrap; text-align: right; }
+  .row-amt.credit { color: var(--gold); }      /* money in */
+  .row-amt.debit { color: var(--cream); }
+  .row-amt.declined { color: var(--terra); }
+  .row-status { text-align: right; font-size: 11px; color: var(--muted); }
+  .row-status.income { color: var(--gold); }
+  .row-status.declined { color: var(--terra); }
+  .ledger::-webkit-scrollbar { width: 6px; }
+  .ledger::-webkit-scrollbar-thumb { background: rgba(236,227,207,0.14); border-radius: 99px; }
+
+  /* controls */
+  .slider-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: var(--s3); }
+  .slider-head span { font-size: 12.5px; color: var(--muted); }
+  .slider-head b { font-weight: 500; font-size: 14px; color: var(--cream); }   /* value is neutral, not gold */
+  input[type="range"] { width: 100%; height: 3px; -webkit-appearance: none; appearance: none; background: rgba(236,227,207,0.18); border-radius: 99px; outline: none; margin-bottom: var(--s5); }
+  input[type="range"]:last-of-type { margin-bottom: var(--s1); }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 15px; height: 15px; border-radius: 50%; background: var(--cream); cursor: pointer; border: 3px solid var(--canvas); box-shadow: 0 0 0 1px var(--line-strong); }
+  input[type="range"]::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: var(--cream); cursor: pointer; border: 3px solid var(--canvas); }
+
+  .field { display: block; font-size: 12px; color: var(--muted); margin-bottom: var(--s2); }
+  input[type="number"] { width: 100%; background: transparent; border: none; border-bottom: 1px solid var(--line-strong); color: var(--cream); font-family: 'DM Mono', monospace; font-size: 22px; padding: var(--s1) 0 var(--s2); outline: none; transition: border-color 0.2s ease; }
+  input[type="number"]:focus { border-bottom-color: var(--gold); }
+  input[type="number"]::placeholder { color: var(--muted); opacity: 0.45; }
+
+  .btn { display: block; width: 100%; cursor: pointer; font-family: 'DM Mono', monospace; font-size: 12.5px; letter-spacing: 0.03em; padding: 13px; border-radius: 3px; margin-top: var(--s4); border: 1px solid transparent; transition: transform 0.05s ease, filter 0.15s ease, background 0.15s ease, color 0.15s ease, border-color 0.15s ease; }
   .btn:active { transform: translateY(1px); }
-  .btn.primary { background: var(--green); color: #06150c; }
-  .btn.spend { background: var(--blue); color: #04162e; }
-  .btn.ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
-  .btn.danger { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
-  .btn:hover { filter: brightness(1.08); }
+  .btn.gold { background: var(--gold); color: var(--ink); border-color: var(--gold); font-weight: 500; }   /* the one loud accent */
+  .btn.gold:hover { filter: brightness(1.05); }
+  .btn.line { background: transparent; color: var(--cream); border-color: var(--line-strong); }
+  .btn.line:hover { border-color: var(--cream); }
+  .btn.danger { background: transparent; color: var(--terra); border: none; margin-top: var(--s3); font-size: 11px; }
+  .btn.danger:hover { color: #ec7058; }
 
-  .quick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
-  .quick button {
-    background: #0c0e12; border: 1px solid var(--border); color: var(--text);
-    border-radius: 9px; padding: 9px; cursor: pointer; font-family: inherit;
-    text-align: left; transition: border-color 0.15s ease;
-  }
-  .quick button:hover { border-color: var(--green); }
-  .quick button b { display: block; font-size: 14px; }
-  .quick button span { color: var(--muted); font-size: 10px; }
+  .presets { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); margin-top: var(--s4); }
+  .presets button { background: transparent; border: 1px solid var(--line); color: var(--cream); border-radius: 3px; padding: 10px 11px; cursor: pointer; font-family: 'DM Mono', monospace; font-size: 13px; text-align: left; transition: border-color 0.15s ease, background 0.15s ease; }
+  .presets button em { display: block; font-style: normal; font-size: 10.5px; color: var(--muted); margin-top: 3px; }
+  .presets button:hover { border-color: var(--gold); background: rgba(230,178,74,0.06); }
 
-  /* ---- transaction log ---- */
-  .log { max-height: 360px; overflow-y: auto; margin: -4px -4px 0; padding: 4px; }
-  .log .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 32px 0; }
-  .logrow {
-    display: flex; align-items: center; gap: 12px;
-    padding: 12px 4px; border-bottom: 1px solid var(--border);
-  }
-  .logrow:last-child { border-bottom: none; }
-  .logrow .meta { flex: 1; min-width: 0; }
-  .logrow .merchant { font-size: 14px; }
-  .logrow .note { color: var(--muted); font-size: 11px; margin-top: 2px; }
-  .logrow .amt { font-size: 14px; white-space: nowrap; }
-  .logrow .amt.in { color: var(--green); }
-  .logrow .amt.out { color: var(--danger); }
-  .pill {
-    font-size: 9px; letter-spacing: 0.08em; padding: 4px 8px; border-radius: 999px;
-    text-transform: uppercase; white-space: nowrap;
-  }
-  .pill.income { background: rgba(77, 159, 255, 0.14); color: var(--blue); }
-  .pill.approved { background: rgba(0, 232, 122, 0.13); color: var(--green); }
-  .pill.declined { background: rgba(255, 77, 94, 0.14); color: var(--danger); }
+  .foot { margin-top: var(--s6); padding-top: var(--s4); border-top: 1px solid var(--line); display: grid; grid-template-columns: 1.5fr 1fr; gap: var(--s4); font-size: 11px; color: var(--muted); }
+  .foot .right { text-align: right; }
+  .foot b { color: var(--cream); font-weight: 400; }
 
-  .log::-webkit-scrollbar { width: 7px; }
-  .log::-webkit-scrollbar-thumb { background: #232a33; border-radius: 999px; }
+  /* toasts */
+  #toasts { position: fixed; right: var(--s5); bottom: var(--s5); display: flex; flex-direction: column; gap: 10px; z-index: 60; }
+  .toast { background: #16291f; border: 1px solid var(--line-strong); border-left: 2px solid var(--gold); color: var(--cream); padding: 13px 17px; border-radius: 3px; font-size: 12.5px; max-width: 320px; box-shadow: 0 18px 40px -18px rgba(0,0,0,0.7); animation: rise 0.3s cubic-bezier(.2,.7,.2,1); }
+  .toast.bad { border-left-color: var(--terra); }
 
-  /* ---- toasts ---- */
-  #toasts { position: fixed; right: 20px; bottom: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 50; }
-  .toast {
-    background: var(--surface); border: 1px solid var(--border);
-    border-left: 3px solid var(--green);
-    padding: 12px 16px; border-radius: 10px; font-size: 13px; min-width: 240px;
-    box-shadow: 0 12px 30px rgba(0,0,0,0.5);
-    animation: rise 0.25s ease;
-  }
-  .toast.bad { border-left-color: var(--danger); }
-  @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+  /* one orchestrated load, staggered. base opacity stays 1 so a frozen
+     snapshot still shows everything. */
+  @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+  .reveal { animation: rise 0.7s cubic-bezier(.2,.7,.2,1) both; }
+  .masthead.reveal { animation-delay: 0.02s; }
+  .hero.reveal { animation-delay: 0.10s; }
+  .col-readout .reveal:nth-child(1) { animation-delay: 0.18s; }
+  .col-readout .reveal:nth-child(2) { animation-delay: 0.24s; }
+  .col-readout .reveal:nth-child(3) { animation-delay: 0.30s; }
+  .col-controls .reveal:nth-child(1) { animation-delay: 0.22s; }
+  .col-controls .reveal:nth-child(2) { animation-delay: 0.28s; }
+  .col-controls .reveal:nth-child(3) { animation-delay: 0.34s; }
 
-  .footer { color: var(--muted); font-size: 11px; text-align: center; margin-top: 34px; }
-
-  @media (max-width: 880px) {
-    .stats { grid-template-columns: 1fr 1fr; }
-    .main { grid-template-columns: 1fr; }
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: 1fr; }
+    .hero-vitals { border-left: none; border-top: 1px solid var(--line-ink); }
+    .cols { grid-template-columns: 1fr; gap: var(--s6); }
+    .foot { grid-template-columns: 1fr; }
+    .foot .right { text-align: left; }
   }
 </style>
 </head>
 <body>
 <div class="wrap">
 
-  <header class="topbar">
-    <div class="logomark">G</div>
-    <div class="brand">
-      <span class="name">GigGuard</span>
-      <span class="tag">Smooth out feast or famine. Your card holds the line.</span>
+  <header class="masthead reveal">
+    <svg class="shield" viewBox="0 0 24 26" width="27" height="29" fill="none" aria-hidden="true">
+      <path d="M12 1.4 L21.6 4.8 V12 C21.6 18 17.3 22.7 12 24.6 C6.7 22.7 2.4 18 2.4 12 V4.8 Z" stroke="var(--gold)" stroke-width="1.3"/>
+      <path d="M7.4 13 H16.6" stroke="var(--gold)" stroke-width="1.3" stroke-linecap="round"/>
+      <path d="M8.6 9.4 H15.4" stroke="rgba(236,227,207,0.5)" stroke-width="1.1" stroke-linecap="round"/>
+    </svg>
+    <div class="wordmark">
+      <span class="kicker">Income smoothing on Investec programmable banking</span>
+      <h1>Gig<span class="dot">G</span>uard</h1>
     </div>
-    <span class="badge">Sandbox Mode</span>
+    <div class="mast-right">
+      <span class="tag">Sandbox</span>
+      <div class="issue">Statement <span id="stmt-no">No. 00</span></div>
+      <div class="issue-date" id="stmt-date">Week of</div>
+    </div>
   </header>
 
-  <!-- four headline numbers -->
-  <section class="stats">
-    <div class="stat green">
-      <div class="label">Buffer Balance</div>
-      <div class="value"><span class="rand">R</span><span id="s-buffer">0.00</span></div>
-      <div class="sub">held back from your income</div>
+  <div class="rule"></div>
+
+  <section class="hero reveal">
+    <div class="hero-main">
+      <span class="hero-eyebrow">Available to spend this week</span>
+      <div class="figure"><span class="cur">R</span><span id="h-remaining">0.00</span></div>
+      <div class="hero-meter"><span id="h-meter"></span></div>
+      <div class="hero-used" id="h-used">Add income to set a weekly release.</div>
     </div>
-    <div class="stat warn">
-      <div class="label">Weekly Release</div>
-      <div class="value"><span class="rand">R</span><span id="s-release">0.00</span></div>
-      <div class="sub">your synthetic salary</div>
-    </div>
-    <div class="stat danger">
-      <div class="label">Spent This Week</div>
-      <div class="value"><span class="rand">R</span><span id="s-spent">0.00</span></div>
-      <div class="sub"><span id="s-remaining">R0.00</span> still available</div>
-    </div>
-    <div class="stat blue">
-      <div class="label">Runway</div>
-      <div class="value"><span id="s-runway">0.0</span> <span class="rand">wks</span></div>
-      <div class="sub">at the current release</div>
+    <div class="hero-vitals">
+      <div class="vital"><span class="vital-label">Buffer balance</span><span class="vital-value" id="v-buffer">R0.00</span></div>
+      <div class="vital"><span class="vital-label">Weekly release</span><span class="vital-value" id="v-release">R0.00</span></div>
+      <div class="vital"><span class="vital-label">Runway</span><span class="vital-value" id="v-runway">0.0 wks</span></div>
     </div>
   </section>
 
-  <div class="main">
-    <!-- left column -->
-    <div class="col">
+  <div class="tear"></div>
 
-      <div class="panel">
-        <h3>Where your income went</h3>
-        <p class="hint">Every payout is split the moment it lands. The green slice is parked in the buffer, the rest is yours to spend.</p>
-        <div class="allocbar"><div class="fill" id="alloc-fill" style="width:0%"></div></div>
-        <div class="alloclabels">
-          <span>Buffer <b id="alloc-buffer">R0.00</b> <span class="muted" id="alloc-pct">(0%)</span></span>
-          <span class="muted">Spendable <b id="alloc-spend">R0.00</b></span>
+  <div class="cols">
+    <div class="col-readout">
+
+      <section class="readout reveal">
+        <div class="section-head"><span class="sec-no">01</span><h3>Where this income went</h3></div>
+        <div class="split"><span class="seg-buf" id="alloc-buf-seg" style="width:0%"></span><span class="seg-spend" id="alloc-spend-seg" style="width:100%"></span></div>
+        <div class="split-legend">
+          <span><i class="dot gold"></i>Withheld <b id="alloc-buffer">R0.00</b> <span class="muted" id="alloc-pct">0%</span></span>
+          <span class="muted"><i class="dot faint"></i>Spendable <b id="alloc-spend">R0.00</b></span>
         </div>
-      </div>
+      </section>
 
-      <div class="row2">
-        <div class="panel">
-          <h3>This week</h3>
-          <p class="hint">Share of the release used.</p>
-          <div class="arcwrap">
-            <svg viewBox="0 0 220 128" aria-hidden="true">
-              <path class="arc-track" d="M 18 112 A 92 92 0 0 1 202 112" />
-              <path class="arc-value" id="arc" d="M 18 112 A 92 92 0 0 1 202 112" />
-            </svg>
-            <div class="arc-center">
-              <div class="pct" id="arc-pct">0%</div>
-              <div class="cap">spent</div>
-            </div>
-          </div>
-          <div class="arc-foot" id="arc-foot">R0.00 of R0.00 left</div>
-        </div>
+      <section class="readout reveal">
+        <div class="section-head"><span class="sec-no">02</span><h3>Runway</h3></div>
+        <div class="ruler" id="runway-ticks"></div>
+        <div class="note" id="runway-note">Add income to build runway.</div>
+      </section>
 
-        <div class="panel">
-          <h3>Runway</h3>
-          <p class="hint">Weeks the buffer covers at this release.</p>
-          <div class="pips" id="pips"></div>
-          <div class="pips-foot" id="pips-foot">Add income to build runway.</div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <h3>Activity</h3>
-        <p class="hint">Income and card taps, newest first.</p>
-        <div class="log" id="log"><div class="empty">No activity yet. Simulate some income to begin.</div></div>
-      </div>
+      <section class="readout reveal">
+        <div class="section-head"><span class="sec-no">03</span><h3>Activity</h3></div>
+        <div class="ledger" id="log"><div class="empty">No activity yet. Receive some income to begin.</div></div>
+      </section>
 
     </div>
 
-    <!-- right column: controls -->
-    <div class="col">
+    <div class="col-controls">
 
-      <div class="panel">
-        <h3>Buffer settings</h3>
-        <p class="hint">Two dials. The rest follows.</p>
-
-        <div class="slider-head"><b>Withhold from income</b><span class="slider-val" id="lbl-buffer">30%</span></div>
+      <section class="panel reveal">
+        <h3 class="panel-title">Buffer settings</h3>
+        <div class="slider-head"><span>Withhold from income</span><b id="lbl-buffer">30%</b></div>
         <input type="range" id="sl-buffer" min="10" max="60" step="1" value="30" />
-
-        <div class="slider-head"><b>Stretch over</b><span class="slider-val" id="lbl-weeks">4 weeks</span></div>
+        <div class="slider-head"><span>Stretch over</span><b id="lbl-weeks">4 weeks</b></div>
         <input type="range" id="sl-weeks" min="1" max="12" step="1" value="4" />
-      </div>
+      </section>
 
-      <div class="panel">
-        <h3>Simulate income</h3>
-        <p class="hint">Pretend a gig payout just landed.</p>
-        <input type="number" id="in-income" placeholder="Amount in rand" min="0" step="50" />
-        <button class="btn primary" id="btn-income">Receive income &rarr;</button>
-        <div class="quick">
-          <button data-amt="2000"><b>R2k</b><span>slow week</span></button>
-          <button data-amt="8000"><b>R8k</b><span>good week</span></button>
-          <button data-amt="15000"><b>R15k</b><span>great month</span></button>
-          <button data-amt="500"><b>R500</b><span>dry spell</span></button>
+      <section class="panel reveal">
+        <h3 class="panel-title">Simulate income</h3>
+        <label class="field">Amount in rand</label>
+        <input type="number" id="in-income" placeholder="0" min="0" step="50" />
+        <button class="btn gold" id="btn-income">Receive income</button>
+        <div class="presets">
+          <button data-amt="2000">R2k<em>slow week</em></button>
+          <button data-amt="8000">R8k<em>good week</em></button>
+          <button data-amt="15000">R15k<em>great month</em></button>
+          <button data-amt="500">R500<em>dry spell</em></button>
         </div>
-      </div>
+      </section>
 
-      <div class="panel">
-        <h3>Simulate a card tap</h3>
-        <p class="hint">The card checks the weekly release before it lets a spend through.</p>
-        <input type="number" id="in-spend" placeholder="Amount in rand" min="0" step="10" />
-        <button class="btn spend" id="btn-spend">Attempt spend &rarr;</button>
+      <section class="panel reveal">
+        <h3 class="panel-title">Card tap</h3>
+        <label class="field">Amount in rand</label>
+        <input type="number" id="in-spend" placeholder="0" min="0" step="10" />
+        <button class="btn line" id="btn-spend">Attempt spend</button>
         <button class="btn danger" id="btn-reset">Reset everything</button>
-      </div>
+      </section>
 
     </div>
   </div>
 
-  <p class="footer">Sandbox demo. No real money moves. The buffer is a ledger, not an account.</p>
+  <div class="foot">
+    <span>Sandbox demo. No real money moves. The buffer is a ledger, not an account.</span>
+    <span class="right">Withholding <b id="foot-policy">30% over 4 weeks</b></span>
+  </div>
 </div>
 
 <div id="toasts"></div>
 
 <script>
   // -----------------------------------------------------------------
-  // The whole engine. This is the same integer math the backend runs,
-  // copied here so the dashboard works on its own with no server and no
-  // network. Money is cents everywhere, rands only when we paint it.
+  // The engine. Same integer cents math as the backend, copied so the
+  // page runs on its own with no server and no network. Rands only get
+  // produced at the very edge, when a human reads a number.
   // -----------------------------------------------------------------
   const S = {
     bufferPercent: 30,
@@ -385,69 +341,43 @@
     bufferBalance: 0,  // cents
     weeklyRelease: 0,  // cents
     spentThisWeek: 0,  // cents
-    totalIncome: 0,    // cents, only used for the allocation bar
+    totalIncome: 0,    // cents, only for the allocation split
     log: [],
   };
 
   const rands = (cents) => (cents / 100).toFixed(2);
 
-  // some flavour so the log does not read like a spreadsheet
   const PAYERS = ['Uber payout', 'Bolt earnings', 'Mr D Food', 'Freelance invoice', 'Upwork client', 'Gumtree gig'];
   const SHOPS = ['Pick n Pay', 'Shell garage', 'Uber Eats', 'Vodacom', 'Checkers', 'Takealot', 'Steers', 'Clicks'];
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
   function fmtTime(d) {
-    const h = String(d.getHours()).padStart(2, '0');
-    const m = String(d.getMinutes()).padStart(2, '0');
-    return h + ':' + m;
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
   }
-
-  // ---- the two engine moves, identical to server.js ----
 
   function receiveIncome(cents, who) {
     const toBuffer = Math.floor((cents * S.bufferPercent) / 100);
     S.bufferBalance += toBuffer;
     S.totalIncome += cents;
     S.weeklyRelease = Math.floor(S.bufferBalance / S.minWeeks);
-    addLog({
-      merchant: who || pick(PAYERS),
-      note: 'R' + rands(toBuffer) + ' to buffer, R' + rands(cents - toBuffer) + ' spendable',
-      amountCents: cents,
-      dir: 'in',
-      status: 'income',
-    });
+    addLog({ merchant: who || pick(PAYERS), note: 'R' + rands(toBuffer) + ' to buffer, R' + rands(cents - toBuffer) + ' spendable', amountCents: cents, dir: 'in', status: 'income' });
     render();
-    toast('Income of R' + rands(cents) + ' received', 'good');
+    toast('Income of R' + rands(cents) + ' received.', 'good');
   }
 
   function attemptSpend(cents, where) {
     const remaining = S.weeklyRelease - S.spentThisWeek;
     where = where || pick(SHOPS);
-
     if (cents > remaining) {
-      // this is exactly what the card's beforeTransaction hook would see
-      addLog({
-        merchant: where,
-        note: 'only R' + rands(remaining) + ' left this week',
-        amountCents: cents,
-        dir: 'out',
-        status: 'declined',
-      });
+      addLog({ merchant: where, note: 'only R' + rands(remaining) + ' left this week', amountCents: cents, dir: 'out', status: 'declined' });
       render();
       toast('Declined. R' + rands(cents) + ' is over the R' + rands(remaining) + ' left this week.', 'bad');
       return;
     }
-
     S.spentThisWeek += cents;
-    addLog({
-      merchant: where,
-      note: 'R' + rands(remaining - cents) + ' left this week',
-      amountCents: cents,
-      dir: 'out',
-      status: 'approved',
-    });
+    addLog({ merchant: where, note: 'R' + rands(remaining - cents) + ' left this week', amountCents: cents, dir: 'out', status: 'approved' });
     render();
-    toast('Approved R' + rands(cents) + ' at ' + where, 'good');
+    toast('Approved R' + rands(cents) + ' at ' + where + '.', 'good');
   }
 
   function addLog(entry) {
@@ -457,111 +387,114 @@
   }
 
   function resetAll() {
-    S.bufferBalance = 0;
-    S.weeklyRelease = 0;
-    S.spentThisWeek = 0;
-    S.totalIncome = 0;
-    S.log = [];
+    S.bufferBalance = 0; S.weeklyRelease = 0; S.spentThisWeek = 0; S.totalIncome = 0; S.log = [];
     render();
     toast('Reset. Clean slate.', 'good');
   }
 
   // -----------------------------------------------------------------
-  // Painting
-  // -----------------------------------------------------------------
   const $ = (id) => document.getElementById(id);
-  const ARC_LEN = Math.PI * 92; // length of the semicircle path
 
   function render() {
     const remaining = S.weeklyRelease - S.spentThisWeek;
     const runway = S.weeklyRelease > 0 ? S.bufferBalance / S.weeklyRelease : 0;
-
-    // headline numbers
-    $('s-buffer').textContent = rands(S.bufferBalance);
-    $('s-release').textContent = rands(S.weeklyRelease);
-    $('s-spent').textContent = rands(S.spentThisWeek);
-    $('s-remaining').textContent = 'R' + rands(remaining);
-    $('s-runway').textContent = runway.toFixed(1);
-
-    // allocation bar
-    const bufPct = S.totalIncome > 0 ? (S.bufferBalance / S.totalIncome) * 100 : 0;
-    $('alloc-fill').style.width = bufPct.toFixed(1) + '%';
-    $('alloc-buffer').textContent = 'R' + rands(S.bufferBalance);
-    $('alloc-pct').textContent = '(' + Math.round(bufPct) + '%)';
-    $('alloc-spend').textContent = 'R' + rands(S.totalIncome - S.bufferBalance);
-
-    // weekly spend arc
     const usedPct = S.weeklyRelease > 0 ? Math.min(1, S.spentThisWeek / S.weeklyRelease) : 0;
-    const arc = $('arc');
-    arc.style.strokeDasharray = ARC_LEN;
-    arc.style.strokeDashoffset = ARC_LEN * (1 - usedPct);
-    arc.style.stroke = usedPct >= 1 ? 'var(--danger)' : usedPct >= 0.75 ? 'var(--warn)' : 'var(--green)';
-    $('arc-pct').textContent = Math.round(usedPct * 100) + '%';
-    $('arc-foot').textContent = 'R' + rands(remaining) + ' of R' + rands(S.weeklyRelease) + ' left';
 
-    // runway pips
-    renderPips(runway);
+    $('h-remaining').textContent = rands(remaining);
+    $('h-meter').style.width = (usedPct * 100).toFixed(1) + '%';
+    $('h-meter').style.background = usedPct >= 1 ? 'var(--terra)' : usedPct >= 0.8 ? 'var(--gold-soft)' : 'var(--ink)';
+    $('h-used').textContent = S.weeklyRelease > 0
+      ? 'R' + rands(S.spentThisWeek) + ' of R' + rands(S.weeklyRelease) + ' weekly release used'
+      : 'Add income to set a weekly release.';
 
-    // activity log
+    $('v-buffer').textContent = 'R' + rands(S.bufferBalance);
+    $('v-release').textContent = 'R' + rands(S.weeklyRelease);
+    $('v-runway').textContent = runway.toFixed(1) + ' wks';
+    $('foot-policy').textContent = S.bufferPercent + '% over ' + S.minWeeks + (S.minWeeks === 1 ? ' week' : ' weeks');
+
+    renderAllocation();
+    renderRunway(runway);
     renderLog();
   }
 
-  function renderPips(runway) {
-    const wrap = $('pips');
+  function renderAllocation() {
+    const bufPct = S.totalIncome > 0 ? (S.bufferBalance / S.totalIncome) * 100 : 0;
+    $('alloc-buf-seg').style.width = bufPct.toFixed(1) + '%';
+    $('alloc-spend-seg').style.width = (100 - bufPct).toFixed(1) + '%';
+    $('alloc-buffer').textContent = 'R' + rands(S.bufferBalance);
+    $('alloc-spend').textContent = 'R' + rands(S.totalIncome - S.bufferBalance);
+    $('alloc-pct').textContent = Math.round(bufPct) + '%';
+  }
+
+  // a real ruler: 16 columns, each its own tick with a label slot beneath,
+  // so W4 actually sits under the fourth tick.
+  function renderRunway(runway) {
     const low = runway > 0 && runway < 2;
+    const labels = { 1: 'W1', 4: 'W4', 8: 'W8', 12: 'W12', 16: 'W16' };
     let html = '';
     for (let i = 1; i <= 16; i++) {
-      let cls = 'pip';
-      if (i <= Math.floor(runway)) cls += low ? ' low' : ' on';
-      html += '<div class="' + cls + '" title="Week ' + i + '">' + i + '</div>';
+      let cls = 'tick';
+      if (i <= Math.floor(runway)) cls += low ? ' on low' : ' on';
+      html += '<span class="rcol"><span class="' + cls + '"></span><span class="rlab">' + (labels[i] || '') + '</span></span>';
     }
-    wrap.innerHTML = html;
-
-    const foot = $('pips-foot');
-    if (runway <= 0) foot.textContent = 'Add income to build runway.';
-    else if (low) foot.textContent = 'Runway under 2 weeks. Ease off or top up.';
-    else foot.textContent = 'About ' + runway.toFixed(1) + ' weeks of cover.';
+    $('runway-ticks').innerHTML = html;
+    const note = $('runway-note');
+    if (runway <= 0) note.textContent = 'Add income to build runway.';
+    else if (low) note.textContent = 'Under 2 weeks of cover. Ease off or top up.';
+    else note.textContent = 'About ' + runway.toFixed(1) + ' weeks of cover at this release.';
   }
+
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
   function renderLog() {
     const box = $('log');
     if (S.log.length === 0) {
-      box.innerHTML = '<div class="empty">No activity yet. Simulate some income to begin.</div>';
+      box.innerHTML = '<div class="empty">No activity yet. Receive some income to begin.</div>';
       return;
     }
     box.innerHTML = S.log.map(function (e) {
-      const sign = e.dir === 'in' ? '+' : '−'; // minus sign, not a hyphen
-      const amtCls = e.dir === 'in' ? 'in' : 'out';
-      const pillCls = e.status; // income | approved | declined
-      const pillText = e.status.toUpperCase();
+      const sign = e.dir === 'in' ? '+' : '−'; // a real minus sign, not a hyphen
+      const amtCls = e.dir === 'in' ? 'credit' : (e.status === 'declined' ? 'declined' : 'debit');
       return (
-        '<div class="logrow">' +
-          '<div class="meta">' +
-            '<div class="merchant">' + e.merchant + '</div>' +
-            '<div class="note">' + e.time + '  &middot;  ' + e.note + '</div>' +
-          '</div>' +
-          '<div class="amt ' + amtCls + '">' + sign + 'R' + rands(e.amountCents) + '</div>' +
-          '<span class="pill ' + pillCls + '">' + pillText + '</span>' +
+        '<div class="row">' +
+          '<div class="row-main"><span class="row-merchant">' + e.merchant + '</span>' +
+          '<span class="row-note">' + e.time + '  ·  ' + e.note + '</span></div>' +
+          '<span class="row-amt ' + amtCls + '">' + sign + 'R' + rands(e.amountCents) + '</span>' +
+          '<span class="row-status ' + e.status + '">' + cap(e.status) + '</span>' +
         '</div>'
       );
     }).join('');
   }
 
-  // -----------------------------------------------------------------
-  // Toasts
-  // -----------------------------------------------------------------
   function toast(msg, kind) {
     const el = document.createElement('div');
     el.className = 'toast' + (kind === 'bad' ? ' bad' : '');
     el.textContent = msg;
-    $('toasts') ? document.getElementById('toasts').appendChild(el) : null;
+    document.getElementById('toasts').appendChild(el);
     setTimeout(function () {
       el.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-      el.style.opacity = '0';
-      el.style.transform = 'translateY(10px)';
+      el.style.opacity = '0'; el.style.transform = 'translateY(10px)';
       setTimeout(function () { el.remove(); }, 300);
     }, 3000);
   }
+
+  // statement nameplate: this week's pay period and a running statement number
+  (function stamp() {
+    const now = new Date();
+    const day = now.getDay();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - ((day + 6) % 7)); // back to Monday
+    const mo = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const dd = String(monday.getDate()).padStart(2, '0');
+    $('stmt-date').textContent = 'Week of ' + dd + ' ' + mo[monday.getMonth()] + ' ' + monday.getFullYear();
+    // proper ISO 8601 week number, so the statement number is actually right
+    const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7) + 3); // nearest Thursday
+    const firstThu = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+    firstThu.setUTCDate(firstThu.getUTCDate() - ((firstThu.getUTCDay() + 6) % 7) + 3);
+    const week = 1 + Math.round((d - firstThu) / (7 * 86400000));
+    $('stmt-no').textContent = 'No. ' + String(week).padStart(2, '0');
+  })();
 
   // -----------------------------------------------------------------
   // Wiring
@@ -569,14 +502,12 @@
   $('sl-buffer').addEventListener('input', function (e) {
     S.bufferPercent = Number(e.target.value);
     $('lbl-buffer').textContent = S.bufferPercent + '%';
-    // buffer percent only changes future income, so nothing to recompute
     render();
   });
 
   $('sl-weeks').addEventListener('input', function (e) {
     S.minWeeks = Number(e.target.value);
     $('lbl-weeks').textContent = S.minWeeks + (S.minWeeks === 1 ? ' week' : ' weeks');
-    // stretching the runway changes the weekly release right away
     S.weeklyRelease = Math.floor(S.bufferBalance / S.minWeeks);
     render();
   });
@@ -588,10 +519,8 @@
     $('in-income').value = '';
   });
 
-  document.querySelectorAll('.quick button').forEach(function (b) {
-    b.addEventListener('click', function () {
-      receiveIncome(Number(b.dataset.amt) * 100);
-    });
+  document.querySelectorAll('.presets button').forEach(function (b) {
+    b.addEventListener('click', function () { receiveIncome(Number(b.dataset.amt) * 100); });
   });
 
   $('btn-spend').addEventListener('click', function () {
@@ -603,7 +532,6 @@
 
   $('btn-reset').addEventListener('click', resetAll);
 
-  // first paint
   render();
 </script>
 </body>
