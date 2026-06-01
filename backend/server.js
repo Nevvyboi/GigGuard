@@ -18,7 +18,7 @@ const express = require('express');
 const app = express();
 app.use(express.json());
 
-const PORT = process.env.PORT || 3000;
+const port = process.env.PORT || 3000;
 
 // Investec endpoints. In the sandbox the token and the data both come from
 // the openapisandbox host, and the token path is /identity/v2/oauth2/token.
@@ -26,9 +26,9 @@ const PORT = process.env.PORT || 3000;
 // (identity.secure.investec.com/connect/token), so sandbox code pointed at the
 // live host gets a token error and never reaches the data. For production,
 // swap both constants for the live hosts. Override via env if you like.
-const INVESTEC_TOKEN_URL =
+const investecTokenUrl =
   process.env.INVESTEC_TOKEN_URL || 'https://openapisandbox.investec.com/identity/v2/oauth2/token';
-const INVESTEC_API_BASE =
+const investecApiBase =
   process.env.INVESTEC_API_BASE || 'https://openapisandbox.investec.com/za/pb/v1';
 
 // ---------------------------------------------------------------------
@@ -79,9 +79,9 @@ function makeUser(over = {}) {
 // server boots, before anyone calls /setup. If you have put Investec
 // sandbox credentials in .env we pick them up here so /poll works
 // straight away; otherwise fill them in later with a /setup call.
-const DEMO_ID = 'demo';
-users.set(DEMO_ID, makeUser({
-  userId: DEMO_ID,
+const demoId = 'demo';
+users.set(demoId, makeUser({
+  userId: demoId,
   investecClientId: process.env.INVESTEC_CLIENT_ID || '',
   investecSecret: process.env.INVESTEC_SECRET || '',
   investecApiKey: process.env.INVESTEC_API_KEY || '',
@@ -92,7 +92,7 @@ users.set(DEMO_ID, makeUser({
 // it belongs to in this demo), so we resolve to the single demo user.
 // A real multi-card deployment would map the card token to a user here.
 function userForCard() {
-  return users.get(DEMO_ID);
+  return users.get(demoId);
 }
 
 // ---------------------------------------------------------------------
@@ -129,11 +129,11 @@ function resetWeekIfNeeded(user) {
 // that never settles (declined after approve, dropped afterTransaction) would
 // otherwise wedge the cap shut, so holds expire on their own. The window is
 // the card's roughly two second decision budget plus a margin.
-const HOLD_TTL_MS = 5000;
+const holdTtlMs = 5000;
 
 function sweepHolds(user) {
   const now = Date.now();
-  user.holds = user.holds.filter((h) => now - h.at < HOLD_TTL_MS);
+  user.holds = user.holds.filter((h) => now - h.at < holdTtlMs);
 }
 
 // cents currently reserved by approved-but-not-yet-settled checks
@@ -157,7 +157,7 @@ async function getInvestecToken(user) {
 
   const basic = Buffer.from(`${user.investecClientId}:${user.investecSecret}`).toString('base64');
 
-  const res = await fetch(INVESTEC_TOKEN_URL, {
+  const res = await fetch(investecTokenUrl, {
     method: 'POST',
     headers: {
       Authorization: `Basic ${basic}`,
@@ -185,7 +185,7 @@ async function getInvestecToken(user) {
 // thinks in cents. We convert on the way in.
 async function fetchTransactions(user, fromDate, toDate) {
   const token = await getInvestecToken(user);
-  const url = `${INVESTEC_API_BASE}/accounts/${user.accountId}/transactions?fromDate=${fromDate}&toDate=${toDate}`;
+  const url = `${investecApiBase}/accounts/${user.accountId}/transactions?fromDate=${fromDate}&toDate=${toDate}`;
 
   const res = await fetch(url, {
     headers: {
@@ -327,6 +327,8 @@ app.post('/check', requireApiKey, (req, res) => {
   // taps in the same blink cannot both spend the last of the weekly release
   const remaining = user.weeklyRelease - user.spentThisWeek - heldCents(user);
 
+  console.log(`/check ${merchant || 'card'} wants R${rands(cents)}, R${rands(remaining)} left this week`);
+
   if (cents > remaining) {
     return res.json({
       approved: false,
@@ -359,9 +361,14 @@ app.post('/record', requireApiKey, (req, res) => {
 
   if (isApprovedDebit) {
     resetWeekIfNeeded(user);
-    user.spentThisWeek += Math.round(Number(amount) || 0);
-    // this settled debit clears the oldest outstanding reservation
-    if (user.holds.length) user.holds.shift();
+    const cents = Math.round(Number(amount) || 0);
+    user.spentThisWeek += cents;
+    // release the reservation this debit settles. match it by amount, and only
+    // fall back to the oldest hold if nothing lines up. the TTL sweep mops up
+    // anything that still slips through.
+    const i = user.holds.findIndex((h) => h.cents === cents);
+    if (i !== -1) user.holds.splice(i, 1);
+    else if (user.holds.length) user.holds.shift();
   }
 
   res.json({
@@ -375,7 +382,7 @@ app.post('/record', requireApiKey, (req, res) => {
 // buffer engine once. We dedupe on a composite key because the sandbox
 // does not hand out stable transaction ids.
 app.post('/poll', requireApiKeyStrict, async (req, res) => {
-  const userId = (req.body && req.body.userId) || DEMO_ID;
+  const userId = (req.body && req.body.userId) || demoId;
   const user = users.get(userId);
   if (!user) {
     return res.status(404).json({ error: 'no such user' });
@@ -429,7 +436,7 @@ app.post('/poll', requireApiKeyStrict, async (req, res) => {
 // Sandbox shortcut. Pretend a payout of amountRands just landed, without
 // going anywhere near Investec. Handy for demos and for the dashboard.
 app.post('/simulate/income', requireApiKeyStrict, (req, res) => {
-  const userId = (req.body && req.body.userId) || DEMO_ID;
+  const userId = (req.body && req.body.userId) || demoId;
   const user = users.get(userId);
   if (!user) {
     return res.status(404).json({ error: 'no such user' });
@@ -452,9 +459,9 @@ app.post('/simulate/income', requireApiKeyStrict, (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`GigGuard backend listening on http://localhost:${PORT}`);
-  console.log(`Demo user ready. Try: curl -X POST localhost:${PORT}/simulate/income -H 'content-type: application/json' -d '{"amountRands":8000}'`);
+app.listen(port, () => {
+  console.log(`GigGuard backend listening on http://localhost:${port}`);
+  console.log(`Demo user ready. Try: curl -X POST localhost:${port}/simulate/income -H 'content-type: application/json' -d '{"amountRands":8000}'`);
 });
 
 // Exported for anyone who wants to unit test the pure bits without the

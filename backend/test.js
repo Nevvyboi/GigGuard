@@ -49,11 +49,11 @@ function resetWeekIfNeeded(user) {
 // settles or the hold ages out, so two taps in the same blink cannot both
 // spend the last of the release. Holds expire after the card's roughly two
 // second budget plus margin.
-const HOLD_TTL_MS = 5000;
+const holdTtlMs = 5000;
 
 function heldCents(user) {
   const now = Date.now();
-  user.holds = user.holds.filter((h) => now - h.at < HOLD_TTL_MS);
+  user.holds = user.holds.filter((h) => now - h.at < holdTtlMs);
   return user.holds.reduce((sum, h) => sum + h.cents, 0);
 }
 
@@ -81,7 +81,10 @@ function canSpend(user, amountCents) {
 
 function recordSpend(user, amountCents) {
   user.spentThisWeek += amountCents;
-  if (user.holds.length) user.holds.shift(); // this debit settles the oldest hold
+  // release the reservation this debit settles, matched by amount
+  const i = user.holds.findIndex((h) => h.cents === amountCents);
+  if (i !== -1) user.holds.splice(i, 1);
+  else if (user.holds.length) user.holds.shift();
 }
 
 // What the dashboard / status endpoint reports. Money fields come out

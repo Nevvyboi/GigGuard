@@ -84,14 +84,14 @@ to read a number. The whole engine is five lines of arithmetic:
 
 ```
 on each incoming credit:
-    toBuffer       = floor(income_cents * bufferPercent / 100)
-    spendable      = income_cents - toBuffer
+    toBuffer       = floor(incomeCents * bufferPercent / 100)
+    spendable      = incomeCents - toBuffer
     bufferBalance += toBuffer
     weeklyRelease  = floor(bufferBalance / minWeeks)
 
 on each card spend:
     remaining      = weeklyRelease - spentThisWeek
-    decline if      spend_cents > remaining
+    decline if      spendCents > remaining
 ```
 
 A worked example, the default 30 percent over 4 weeks:

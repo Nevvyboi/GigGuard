@@ -347,8 +347,8 @@
 
   const rands = (cents) => (cents / 100).toFixed(2);
 
-  const PAYERS = ['Uber payout', 'Bolt earnings', 'Mr D Food', 'Freelance invoice', 'Upwork client', 'Gumtree gig'];
-  const SHOPS = ['Pick n Pay', 'Shell garage', 'Uber Eats', 'Vodacom', 'Checkers', 'Takealot', 'Steers', 'Clicks'];
+  const payers = ['Uber payout', 'Bolt earnings', 'Mr D Food', 'Freelance invoice', 'Upwork client', 'Gumtree gig'];
+  const shops = ['Pick n Pay', 'Shell garage', 'Uber Eats', 'Vodacom', 'Checkers', 'Takealot', 'Steers', 'Clicks'];
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
   function fmtTime(d) {
@@ -360,14 +360,16 @@
     S.bufferBalance += toBuffer;
     S.totalIncome += cents;
     S.weeklyRelease = Math.floor(S.bufferBalance / S.minWeeks);
-    addLog({ merchant: who || pick(PAYERS), note: 'R' + rands(toBuffer) + ' to buffer, R' + rands(cents - toBuffer) + ' spendable', amountCents: cents, dir: 'in', status: 'income' });
+    addLog({ merchant: who || pick(payers), note: 'R' + rands(toBuffer) + ' to buffer, R' + rands(cents - toBuffer) + ' spendable', amountCents: cents, dir: 'in', status: 'income' });
     render();
     toast('Income of R' + rands(cents) + ' received.', 'good');
   }
 
   function attemptSpend(cents, where) {
+    // single user page, no concurrent taps, so this skips the reservation holds
+    // the backend uses and just checks what is left
     const remaining = S.weeklyRelease - S.spentThisWeek;
-    where = where || pick(SHOPS);
+    where = where || pick(shops);
     if (cents > remaining) {
       addLog({ merchant: where, note: 'only R' + rands(remaining) + ' left this week', amountCents: cents, dir: 'out', status: 'declined' });
       render();
