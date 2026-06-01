@@ -58,6 +58,11 @@ function makeUser(over = {}) {
     // polling bookkeeping
     lastPollDate: null,
     seenTxns: new Set(), // keys of credits we already counted
+    // short lived reservations: each approved /check holds its amount until
+    // the matching /record settles or the hold expires. Stops two near
+    // simultaneous taps from both reading the same "remaining" and slipping
+    // past the weekly cap.
+    holds: [], // [{ cents, at }]
     // cached OAuth token
     token: null,
     tokenExpiry: 0,
@@ -112,6 +117,23 @@ function resetWeekIfNeeded(user) {
     user.spentThisWeek = 0;
     user.weekStartDate = new Date().toISOString();
   }
+}
+
+// A check approves and reserves; the matching record settles. A reservation
+// that never settles (declined after approve, dropped afterTransaction) would
+// otherwise wedge the cap shut, so holds expire on their own. The window is
+// the card's roughly two second decision budget plus a margin.
+const HOLD_TTL_MS = 5000;
+
+function sweepHolds(user) {
+  const now = Date.now();
+  user.holds = user.holds.filter((h) => now - h.at < HOLD_TTL_MS);
+}
+
+// cents currently reserved by approved-but-not-yet-settled checks
+function heldCents(user) {
+  sweepHolds(user);
+  return user.holds.reduce((sum, h) => sum + h.cents, 0);
 }
 
 // ---------------------------------------------------------------------
@@ -184,17 +206,32 @@ function daysAgo(n) {
 }
 
 // ---------------------------------------------------------------------
-// Auth. The card webhook routes (/check, /record) carry a shared secret
-// in x-api-key. The poll and status routes are for our own dashboard so
-// they stay open in the demo.
+// Auth. Everything that exposes or drives a user's financial state needs the
+// shared secret in x-api-key. Two flavours:
+//
+//   requireApiKey        for the card hooks (/check, /record). Fails OPEN with
+//                        approved:true, because the card is built to never
+//                        brick, so a bad key must not strand someone at a till.
+//   requireApiKeyStrict  for the data routes (/setup, /status, /poll,
+//                        /simulate/income). Fails CLOSED with a plain 401, so
+//                        nobody can read or move a user's ledger without the key.
+//
+// The dashboard is fully standalone and makes no backend calls, so gating
+// these routes does not affect it. Before any non local use, swap the single
+// shared key for real per user auth.
 // ---------------------------------------------------------------------
 function requireApiKey(req, res, next) {
   const sent = req.header('x-api-key');
   if (!sent || sent !== process.env.GIGGUARD_API_KEY) {
-    // 401 here. The card is built to fall open on anything that is not a
-    // clean approve, so a bad key never bricks the card, it just means
-    // the spend is not enforced.
     return res.status(401).json({ approved: true, reason: 'bad or missing api key' });
+  }
+  next();
+}
+
+function requireApiKeyStrict(req, res, next) {
+  const sent = req.header('x-api-key');
+  if (!sent || sent !== process.env.GIGGUARD_API_KEY) {
+    return res.status(401).json({ error: 'unauthorized' });
   }
   next();
 }
@@ -210,7 +247,7 @@ app.get('/', (_req, res) => {
 
 // Onboard a user / save their dials. Clamps keep the two settings in a
 // sane range no matter what the client sends.
-app.post('/setup', (req, res) => {
+app.post('/setup', requireApiKeyStrict, (req, res) => {
   const {
     userId,
     investecClientId,
@@ -248,7 +285,7 @@ app.post('/setup', (req, res) => {
 
 // What the dashboard shows. Money out as rand strings, runway as a one
 // decimal count of weeks the buffer would last at the current release.
-app.get('/status/:userId', (req, res) => {
+app.get('/status/:userId', requireApiKeyStrict, (req, res) => {
   const user = users.get(req.params.userId);
   if (!user) {
     return res.status(404).json({ error: 'no such user' });
@@ -280,7 +317,9 @@ app.post('/check', requireApiKey, (req, res) => {
   resetWeekIfNeeded(user);
 
   const cents = Math.round(Number(amount) || 0);
-  const remaining = user.weeklyRelease - user.spentThisWeek;
+  // subtract spends already approved this instant but not yet settled, so two
+  // taps in the same blink cannot both spend the last of the weekly release
+  const remaining = user.weeklyRelease - user.spentThisWeek - heldCents(user);
 
   if (cents > remaining) {
     return res.json({
@@ -289,8 +328,10 @@ app.post('/check', requireApiKey, (req, res) => {
     });
   }
 
-  // Note we do not add to spentThisWeek here. We wait for /record so we
-  // only ever count spends the bank actually approved and settled.
+  // Reserve this amount until /record settles it (or the hold expires). We do
+  // not touch spentThisWeek here, that only moves on an approved, settled debit.
+  user.holds.push({ cents, at: Date.now() });
+
   res.json({
     approved: true,
     reason: `Within the weekly release. R${rands(remaining - cents)} left after this.`,
@@ -313,6 +354,8 @@ app.post('/record', requireApiKey, (req, res) => {
   if (isApprovedDebit) {
     resetWeekIfNeeded(user);
     user.spentThisWeek += Math.round(Number(amount) || 0);
+    // this settled debit clears the oldest outstanding reservation
+    if (user.holds.length) user.holds.shift();
   }
 
   res.json({
@@ -325,7 +368,7 @@ app.post('/record', requireApiKey, (req, res) => {
 // a week back on the first run. Every fresh credit gets run through the
 // buffer engine once. We dedupe on a composite key because the sandbox
 // does not hand out stable transaction ids.
-app.post('/poll', async (req, res) => {
+app.post('/poll', requireApiKeyStrict, async (req, res) => {
   const userId = (req.body && req.body.userId) || DEMO_ID;
   const user = users.get(userId);
   if (!user) {
@@ -376,7 +419,7 @@ app.post('/poll', async (req, res) => {
 
 // Sandbox shortcut. Pretend a payout of amountRands just landed, without
 // going anywhere near Investec. Handy for demos and for the dashboard.
-app.post('/simulate/income', (req, res) => {
+app.post('/simulate/income', requireApiKeyStrict, (req, res) => {
   const userId = (req.body && req.body.userId) || DEMO_ID;
   const user = users.get(userId);
   if (!user) {

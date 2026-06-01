@@ -20,6 +20,7 @@ function freshUser(bufferPercent, minWeeks) {
     weeklyRelease: 0,
     spentThisWeek: 0,
     weekStartDate: new Date().toISOString(),
+    holds: [], // amounts approved but not yet settled, see canSpend/recordSpend
   };
 }
 
@@ -44,12 +45,25 @@ function resetWeekIfNeeded(user) {
   }
 }
 
+// Reservations. An approved check holds its amount until the matching record
+// settles or the hold ages out, so two taps in the same blink cannot both
+// spend the last of the release. Holds expire after the card's roughly two
+// second budget plus margin.
+const HOLD_TTL_MS = 5000;
+
+function heldCents(user) {
+  const now = Date.now();
+  user.holds = user.holds.filter((h) => now - h.at < HOLD_TTL_MS);
+  return user.holds.reduce((sum, h) => sum + h.cents, 0);
+}
+
 // The actual gatekeeper. This is what the card's beforeTransaction
-// hook leans on. If the spend would push you past the weekly release,
-// it gets turned away. No overdraft, no "just this once".
+// hook leans on. If the spend would push you past the weekly release
+// (counting amounts already reserved this instant), it gets turned away.
+// No overdraft, no "just this once".
 function canSpend(user, amountCents) {
   resetWeekIfNeeded(user);
-  const remaining = user.weeklyRelease - user.spentThisWeek;
+  const remaining = user.weeklyRelease - user.spentThisWeek - heldCents(user);
   if (amountCents > remaining) {
     return {
       approved: false,
@@ -57,6 +71,7 @@ function canSpend(user, amountCents) {
       reason: `Declined: only R${rands(remaining)} left in this week's release (you tried R${rands(amountCents)}).`,
     };
   }
+  user.holds.push({ cents: amountCents, at: Date.now() });
   return {
     approved: true,
     remaining: remaining,
@@ -66,6 +81,7 @@ function canSpend(user, amountCents) {
 
 function recordSpend(user, amountCents) {
   user.spentThisWeek += amountCents;
+  if (user.holds.length) user.holds.shift(); // this debit settles the oldest hold
 }
 
 // What the dashboard / status endpoint reports. Money fields come out
@@ -186,6 +202,19 @@ expect(
   '10 50% buffer over 8 weeks: R10,000 income skims R5,000, releases R625',
   skim10 === 500000 && saver.weeklyRelease === 62500,
   `toBuffer=R${rands(skim10)} release=R${rands(saver.weeklyRelease)}`
+);
+
+// 11. Double tap. Two R500 checks land before either settles. With a R600
+// weekly release the first holds R500, leaving R100, so the second is turned
+// away. Without the hold both would read R600 free and slip past the cap.
+const dt = freshUser(30, 4);
+takeIncome(dt, 800000); // release R600
+const tapA = canSpend(dt, 50000);
+const tapB = canSpend(dt, 50000);
+expect(
+  '11 two taps in the same blink cannot both clear the release',
+  tapA.approved === true && tapB.approved === false,
+  `first approved, second saw only R${rands(tapB.remaining)} free`
 );
 
 console.log(`\n${passed} passed, ${failed} failed`);

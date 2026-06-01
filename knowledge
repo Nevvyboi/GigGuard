@@ -93,3 +93,18 @@ to quietly break later. Read this before you touch the card code.
     rather than a deposit taking or payment business, which is a very
     different regulatory conversation in South Africa. If you ever change
     this to actually sweep money somewhere, stop and get advice first.
+
+
+11. check and record are two calls, so watch the gap between them
+    beforeTransaction asks /check, which reads remaining and approves, but
+    the weekly total only moves later when afterTransaction calls /record.
+    Two taps in the same blink both read the same remaining and can both
+    pass, quietly busting the cap. The fix is a short reservation: /check
+    holds the approved amount and counts it against remaining until /record
+    settles it or the hold ages out (we use roughly the 2 second hook budget
+    plus a margin). The holds have to expire on their own, otherwise an
+    approve that never gets a matching record would wedge the cap shut. This
+    narrows the race, it does not make enforcement atomic. Do not advertise
+    the cap as unbreakable: fail open and a missing record still let the
+    total drift. There is a test that fires two checks before any record and
+    asserts the second is declined.

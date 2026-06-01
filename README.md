@@ -5,9 +5,14 @@
 GigGuard turns the feast or famine of gig income into something that feels
 like a steady weekly salary. When money lands, it quietly holds a slice back.
 Each week it releases a fixed amount you are allowed to spend, and the
-Investec programmable card enforces that limit at the bank itself. Go over
-the weekly release and the card simply declines. No nagging notifications, no
-willpower required.
+Investec programmable card enforces that limit at the bank itself. When the
+backend answers within the card's roughly two second budget, going over the
+weekly release is declined at the till, not just flagged afterwards. By
+deliberate design it fails open: if the backend is unreachable the spend is
+approved rather than stranding you at a till, so the cap is a strong self
+imposed limit on this card, not an unbreakable lock. That honesty is the
+point. Every rival in the field predicts or advises; GigGuard is the only one
+that enforces.
 
 ![GigGuard dashboard](docs/dashboard-overview.png)
 
@@ -29,7 +34,8 @@ Three small pieces that work together:
    sandbox.
 
 You can open `frontend/dashboard.html` right now, with no server and no setup,
-and the full engine runs in the page.
+and the full engine runs in the page. The only thing it fetches is two web
+fonts from Google Fonts. Everything else is inline.
 
 ## The problem it solves
 
@@ -38,9 +44,36 @@ next week pulls in R600. The money that arrives in a burst tends to leave in a
 burst, and then the quiet week hurts. Traditional budgeting apps warn you
 after the fact. A warning is easy to swipe away at the till.
 
-GigGuard moves the limit down to the card. The cap is not a reminder, it is a
-hard decline. The good week funds the quiet week whether or not you remember
-to be disciplined.
+GigGuard moves the limit down to the card. The cap is not a reminder you can
+swipe away, it is a decline at the till whenever the backend is reachable.
+Instead of R8,000 that is gone by Wednesday and a R600 week that hurts, you get
+a steady weekly amount you can plan around. Because the money never leaves your
+own account, it stays a firm nudge rather than a vault, which is the honest
+edge of a self imposed limit.
+
+## Who this is for
+
+GigGuard is for South African gig and informal workers whose pay arrives in
+lumps: ride hailing drivers (Uber, Bolt, inDrive), delivery riders, freelancers
+paid per invoice, and casual or piece rate labour. They are paid by the trip,
+the job, or the week, never on a steady monthly calendar, so a good week and a
+lean week sit right next to each other.
+
+Picture the user, an illustration rather than a real interviewee: a Bolt driver
+in Johannesburg who clears about R7,000 in a strong week and about R1,500 in a
+slow one. The money lands in a burst and tends to leave in a burst, and then
+the quiet week is the one that hurts. Rent, airtime, fuel, and food still
+arrive on a calendar even when the income does not.
+
+This is a large group. Stats South Africa put informal economy employment at
+roughly 5.7 million people in the [Q4 2025 Quarterly Labour Force Survey](https://www.statssa.gov.za/?cat=31),
+with hundreds of thousands of active ride hailing and delivery drivers among
+them. We did not run a formal user study for this sandbox build, so we are not
+claiming survey data. The pain comes from the shape of the work itself: payouts
+that are lumpy by design, plus the plain fact that a warning notification is
+easy to swipe away at the till. GigGuard is for the person who already knows
+they overspend a feast week and wants a limit they set once and then cannot
+casually argue their way out of in the checkout queue.
 
 ## How the buffer engine works
 
@@ -113,15 +146,58 @@ odd cent in the buffer rather than handing it out.
 
 ## Monetisation
 
-All prices in South African rand. Sandbox build, so none of this is wired to a
-payment processor, it is just the intended shape.
+All prices in South African rand. This is a sandbox build, so none of it is
+wired to a payment processor. It is the intended shape of the business, not a
+live billing system.
 
-| Tier | Price | What you get |
-| --- | --- | --- |
-| Free | R0 | One card, manual buffer percent, weekly release enforced, dashboard. |
-| Standard | R39 per month | Automatic income polling, custom buffer and runway, transaction history. |
-| Pro | R99 per month | Multiple income streams, runway forecasting, export, priority support. |
-| Pay as you go | R1.50 per payout processed | No monthly fee. You only pay when income actually lands and gets smoothed. |
+### Who pays and why
+
+The direct payer is the gig worker who has been burned by a blown out feast
+week. The weekly release is the product: a steady amount they can plan around
+instead of a balance that is gone by Wednesday. At R39 a month, Standard costs
+about one declined then regretted impulse buy, which is roughly the thing it
+exists to prevent. Willingness to pay is not even through the month. It peaks
+right after a feast week crash, the first time the buffer carries someone
+through a dry week they would otherwise have struggled with. That is the
+natural moment for an upgrade prompt, a planned go to market mechanic rather
+than something already built.
+
+### Tiers
+
+| Tier | Price | Intended buyer | What you get |
+| --- | --- | --- | --- |
+| Free | R0 | Anyone trying it | One card, manual buffer percent, weekly release enforced, dashboard. |
+| Pay as you go | R1.50 per payout smoothed | The on ramp for a driver who only pays in weeks money lands | No monthly fee. You pay only when income arrives and gets smoothed. |
+| Standard | R39 per month | The single gig regular, predictable enough to commit to a monthly fee | Automatic income polling, custom buffer and runway, transaction history. |
+| Pro | R99 per month | The multi stream freelancer juggling several income sources | Multiple income streams, runway forecasting, export, priority support. |
+
+Pay as you go is the entry point for exactly the headline user. R1.50 against a
+typical weekly payout is a rounding error, and a weekly paid driver pays only
+about R6 a month: cheaper than Standard, and self selecting for low volume
+users who cannot commit to a fixed monthly debit.
+
+### Unit economics
+
+Because GigGuard never moves money, a smoothed payout costs almost nothing to
+serve. It is one ledger write plus one polled API read, with no payment rail
+fee on the smoothing itself. So the R1.50 per payout price is effectively all
+margin, and the marginal cost of an extra user is dominated by the Investec API
+call, not by money movement.
+
+### Who actually pays at scale
+
+Gig workers are, by definition, the segment least able to sustain a fixed
+monthly consumer subscription, so a pure direct to driver model is the least
+believable way to collect money at volume. The stronger channel is a partner
+who already touches these workers and can pay per active seat. Fleet operators,
+ride hailing aggregators, gig marketplaces, and earned wage or payroll
+providers can offer GigGuard as a white labelled retention perk at roughly R25
+per active driver per month (an illustrative intended rate, not a contract). A
+driver whose rent survives a lean week keeps driving, so smoothing is a
+retention tool for the platform, not just a favour to the worker. The
+distribution win is that GigGuard reaches drivers through the platforms that
+already pay them, rather than buying expensive consumer install ads, which
+keeps acquisition cheap enough for a sub R40 direct price to make sense.
 
 ## Project structure
 
@@ -153,11 +229,12 @@ npm install
 npm start
 ```
 
-The server boots with a ready made `demo` user, so you can poke it straight
-away:
+The server boots with a ready made `demo` user. The data routes need the shared
+key: the same value you set as `GIGGUARD_API_KEY` in `.env`, passed as an
+`x-api-key` header. So you can poke it straight away:
 
 ```
-curl localhost:3000/status/demo
+curl localhost:3000/status/demo -H 'x-api-key: your-gigguard-api-key'
 ```
 
 ### 2. Onboard with curl
@@ -168,6 +245,7 @@ and your two dials:
 ```
 curl -X POST localhost:3000/setup \
   -H 'content-type: application/json' \
+  -H 'x-api-key: your-gigguard-api-key' \
   -d '{
     "userId": "demo",
     "investecClientId": "your-client-id",
@@ -184,15 +262,19 @@ Pretend a payout landed, then watch the buffer fill:
 ```
 curl -X POST localhost:3000/simulate/income \
   -H 'content-type: application/json' \
+  -H 'x-api-key: your-gigguard-api-key' \
   -d '{"amountRands": 8000}'
 
-curl localhost:3000/status/demo
+curl localhost:3000/status/demo -H 'x-api-key: your-gigguard-api-key'
 ```
 
 Pull real sandbox transactions instead of simulating:
 
 ```
-curl -X POST localhost:3000/poll -H 'content-type: application/json' -d '{"userId":"demo"}'
+curl -X POST localhost:3000/poll \
+  -H 'content-type: application/json' \
+  -H 'x-api-key: your-gigguard-api-key' \
+  -d '{"userId":"demo"}'
 ```
 
 ### 3. Card IDE
@@ -208,8 +290,9 @@ In the Investec programmable banking card IDE:
 
 ### 4. Dashboard
 
-Open `frontend/dashboard.html` in a browser. It is fully self contained and
-needs no server. The dashboard is laid out like a weekly statement: one big
+Open `frontend/dashboard.html` in a browser. It needs no server and makes no
+backend calls, and its only external request is two web fonts from Google
+Fonts. The dashboard is laid out like a weekly statement: one big
 "available to spend this week" figure on a paper card, with the buffer, the
 weekly release meter, and the runway responding live as you simulate income
 and card taps with the sliders and buttons.
@@ -228,26 +311,70 @@ cd backend
 node test.js
 ```
 
-It prints a tick or a cross for each of the ten checks and exits non zero if
+It prints a tick or a cross for each of the eleven checks and exits non zero if
 any fail, so it drops straight into CI. The checks cover zero state, the
 withholding split, status readout, approvals, the decline at the boundary, a
-one cent overspend, stacked income, a zero credit, and a different buffer and
-runway setting.
+one cent overspend, stacked income, a zero credit, a different buffer and
+runway setting, and a double tap that cannot both clear the weekly release.
 
-## Safety and guardrails
+## What it does and does not do
 
-* **No money moves.** GigGuard never sweeps or transfers funds. The buffer is
-  a number, your cash stays in your own account.
-* **Fail open.** If the backend is unreachable, slow, or returns an error, the
-  card approves rather than stranding you at a till. Wrongly declining a real
-  purchase is a worse outcome than a soft cap for one transaction.
+GigGuard is a budgeting and self control tool. Being precise about its edges is
+part of the trust it asks for.
+
+What it does:
+
+* Skims a buffer percent off every detected income credit and releases a fixed
+  weekly amount you set, so lumpy gig pay feels closer to a steady salary.
+* Enforces that weekly limit at the Investec programmable card. When the backend
+  answers within the card's roughly two second budget, a spend over the weekly
+  release is declined at the till, not just flagged afterwards.
+* Detects income by polling the Investec transactions API, runs the buffer math
+  in integer cents, and keeps the weekly ledger in sync by recording only
+  approved debits.
+
+What it does not do:
+
+* **No money moves.** It never moves, sweeps, transfers, holds, or escrows any
+  money. The buffer is a ledger, a number that says how much of your own income
+  you have chosen not to spend yet. Your cash stays in your own Investec account
+  the whole time. GigGuard is not a deposit taking, custody, or payment business.
+* **Not a vault.** Because the funds never leave your own account, it is a self
+  imposed limit on this one card, a strong nudge rather than a lock. Someone
+  determined to spend the withheld money another way still can.
+* **No guarantee under failure.** By deliberate design it fails open: if the
+  backend is slow, unreachable, or the key is wrong, the spend is approved rather
+  than stranding you at a till. Wrongly declining your only card is the worse
+  harm, so the cap is a strong best effort limit, not an unbreakable one. A short
+  hold on each approved spend closes the common double tap case, two taps in the
+  same instant, and there is a test for it. A spend that is approved but whose
+  afterTransaction never arrives can still let the weekly total drift.
+* **No advice.** It does not tell anyone what to do with their money. It enforces
+  a limit you set for yourself.
+* **No AI.** Every decision is deterministic integer arithmetic you can read in
+  `backend/server.js` and reproduce with `backend/test.js`. There is no model, no
+  inference, and nothing learned from your data.
+
+Other guardrails:
+
 * **Integer money.** All arithmetic is in cents. No floats touch a balance.
-* **Clamped settings.** Buffer percent stays within 10 to 60, runway within 1
-  to 12, no matter what a client sends.
-* **No advice.** GigGuard does not tell anyone what to do with money. It is a
-  tool for enforcing a limit you set yourself.
-* **Sandbox only.** This repo targets the Investec sandbox. Do not point it at
-  a live account.
+* **Clamped settings.** Buffer percent stays within 10 to 60, runway within 1 to
+  12, no matter what a client sends.
+* **Sandbox only.** This repo targets the Investec sandbox. Do not point it at a
+  live account.
+
+Privacy and data:
+
+* Per user, GigGuard stores the Investec client id, secret, api key, and account
+  id you provide, plus the buffer ledger and week state. In this demo all of that
+  lives in memory only and is wiped on every server restart. Nothing is persisted
+  to disk or shared with third parties beyond the Investec API calls the product
+  is built on.
+* The data routes (`/setup`, `/status`, `/poll`, `/simulate/income`) require the
+  shared `GIGGUARD_API_KEY`. The card hooks (`/check`, `/record`) use the same key
+  but fail open, so a bad key can never brick the card. Before any non local use,
+  swap the single shared key for real per user authentication, and do not expose
+  this backend to the public internet as is.
 
 ## Knowledge file
 
