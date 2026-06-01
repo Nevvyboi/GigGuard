@@ -175,8 +175,9 @@ function seedFleet() {
 function userForCard(cardId) {
   if (cardId) {
     for (const u of users.values()) if (u.cardId === cardId) return u;
+    return null; // a card id that matches nobody: never bill it against another driver
   }
-  return users.get(demoId);
+  return users.get(demoId); // no card id at all: single card setups fall back to demo
 }
 
 // ---------------------------------------------------------------------
@@ -455,6 +456,11 @@ app.get('/fleet/:fleetId', requireApiKeyStrict, (req, res) => {
 app.post('/check', requireApiKey, (req, res) => {
   const { amount, amountRands, merchant, reference, cardId } = req.body || {};
   const user = userForCard(cardId);
+  if (!user) {
+    // a card we do not know. fail open so we never brick a card, but enforce
+    // nothing rather than charge the spend against some other driver's release.
+    return res.json({ approved: true, reason: 'unknown card, not enforced' });
+  }
 
   resetWeekIfNeeded(user);
 
@@ -489,6 +495,7 @@ app.post('/check', requireApiKey, (req, res) => {
 app.post('/record', requireApiKey, (req, res) => {
   const { type, amount, status, cardId } = req.body || {};
   const user = userForCard(cardId);
+  if (!user) return res.json({ recorded: false, reason: 'unknown card' });
 
   const isApprovedDebit =
     String(type).toUpperCase() === 'DEBIT' && String(status).toUpperCase() === 'APPROVED';
