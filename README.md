@@ -14,7 +14,9 @@ imposed limit on this card, not an unbreakable lock. That honesty is the
 point. Every rival in the field predicts or advises; GigGuard is the only one
 that enforces.
 
-![GigGuard dashboard](docs/dashboard-overview.png)
+![GigGuard dashboard, lumpy income smoothed into a weekly release and an overspend declined at the card](docs/dashboard-demo.gif)
+
+*Income lands and a slice is withheld, a steady weekly amount is released, the meter fills as the week is spent, and a tap over the cap is declined. Sandbox only, no real money moves.*
 
 > Sandbox project. No real money moves. The buffer is a ledger, not an
 > account. Nothing here is financial advice.
@@ -334,6 +336,10 @@ Fonts. The dashboard is laid out like a weekly statement: one big
 "available to spend this week" figure on a paper card, with the buffer, the
 weekly release meter, and the runway responding live as you simulate income
 and card taps with the sliders and buttons.
+
+A healthy week:
+
+![GigGuard dashboard, a healthy week](docs/dashboard-overview.png)
 
 When a spend goes over the weekly release, the card declines it and a red
 notice appears:
