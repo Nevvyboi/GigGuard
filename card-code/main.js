@@ -25,6 +25,8 @@ const beforeTransaction = async (authorization) => {
   const amount = authorization.centsAmount; // already cents
   const merchant = authorization.merchant ? authorization.merchant.name : 'unknown';
   const reference = authorization.reference || '';
+  // the card's own id maps this tap to a driver, so one backend serves a fleet
+  const cardId = authorization.card ? authorization.card.id : undefined;
 
   try {
     const res = await fetch(`${env.GIGGUARD_WEBHOOK_URL}/check`, {
@@ -33,7 +35,7 @@ const beforeTransaction = async (authorization) => {
         'Content-Type': 'application/json',
         'x-api-key': env.GIGGUARD_API_KEY,
       },
-      body: JSON.stringify({ amount, merchant, reference }),
+      body: JSON.stringify({ amount, merchant, reference, cardId }),
     });
 
     // Any non 200 means the backend is unhappy or our key is wrong.
@@ -81,6 +83,7 @@ const afterTransaction = async (transaction) => {
         type: 'DEBIT',
         amount: transaction.centsAmount, // cents
         status: 'APPROVED',
+        cardId: transaction.card ? transaction.card.id : undefined,
       }),
     });
   } catch (err) {

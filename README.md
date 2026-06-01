@@ -1,43 +1,59 @@
 # GigGuard
 
-**Programmable income smoothing for gig workers, built on Investec programmable banking.**
+**Income smoothing for gig workers, sold through the fleets and platforms they already drive for, on Investec programmable banking.**
 
-GigGuard turns the feast or famine of gig income into something that feels
-like a steady weekly salary. When money lands, it quietly holds a slice back.
-Each week it releases a fixed amount you are allowed to spend, and the
-Investec programmable card enforces that limit at the bank itself. When the
-backend answers within the card's roughly two second budget, going over the
-weekly release is declined at the till, not just flagged afterwards. By
-deliberate design it fails open: if the backend is unreachable the spend is
-approved rather than stranding you at a till, so the cap is a strong self
-imposed limit on this card, not an unbreakable lock. That honesty is the
-point. Every rival in the field predicts or advises; GigGuard is the only one
-that enforces.
+GigGuard turns the feast or famine of gig income into something that feels like
+a steady weekly salary. When a payout lands it quietly holds a slice back, and
+each week it releases a fixed amount you may spend. The Investec programmable
+card enforces that limit at the bank: go over the weekly release and the card
+declines at the till. When the backend answers inside the card's roughly two
+second budget it is a hard decline; by deliberate design it fails open if the
+backend is unreachable, so the cap is a strong self imposed limit, not an
+unbreakable lock. Every rival in the field predicts or advises. GigGuard is the
+only one that enforces.
 
-![GigGuard dashboard, lumpy income smoothed into a weekly release and an overspend declined at the card](docs/dashboard-demo.gif)
+The business is B2B2C. A fleet operator or gig platform offers GigGuard to its
+drivers as a retention perk and pays per active seat, and a stubbed per payout
+fee covers the rest (see [Monetisation](#monetisation)). There are two surfaces,
+both running live against the same multi tenant backend.
 
-*Income lands and a slice is withheld, a steady weekly amount is released, the meter fills as the week is spent, and a tap over the cap is declined. Sandbox only, no real money moves.*
+**The driver's dashboard**, lumpy gig income smoothed into a steady weekly
+release, then a spend over the cap declined:
 
-> Sandbox project. No real money moves. The buffer is a ledger, not an
-> account. Nothing here is financial advice.
+![GigGuard driver dashboard](docs/dashboard-demo.gif)
+
+**The partner's fleet console**, every driver's buffer plus the bill the fleet
+pays (per active seat, plus the per payout smoothing fee):
+
+![GigGuard partner console](docs/partner-demo.gif)
+
+> Sandbox project. No driver money moves; the buffer is a ledger, not an
+> account. The only money that changes hands is our own fee, and even that is a
+> stub. Nothing here is financial advice.
 
 ---
 
 ## What it is
 
-Three small pieces that work together:
+Four pieces that work together:
 
-1. A bit of **card code** that runs inside the Investec programmable card IDE.
-   It intercepts every spend and asks the backend "is this allowed?".
-2. A small **Express backend** that keeps a buffer ledger, watches the account
-   for incoming gig payouts, and answers the card in well under a second.
-3. A self contained **dashboard** you can open in any browser to see the whole
-   thing move, with sliders and buttons to play out income and spending in the
-   sandbox.
+1. **Card code** for the Investec programmable card IDE. On every tap it asks
+   the backend "is this allowed?", passes the card id so one backend can serve a
+   whole fleet, and reports approved debits back.
+2. A multi tenant **Express backend** that keeps a buffer ledger per driver,
+   watches each account for incoming payouts, answers the card in well under a
+   second, bills the fleet per active seat, takes a stubbed fee per smoothed
+   payout, and persists everything to a JSON file so a restart does not wipe a
+   ledger.
+3. A **driver dashboard** (`frontend/dashboard.html`). Open it on its own and a
+   built in engine runs the whole thing offline; point it at a running backend
+   and it flips to a live mode that drives the real API.
+4. A **partner console** (`frontend/partner.html`) for the fleet operator: every
+   driver's buffer, the per seat bill, the smoothing revenue, and a one click
+   onboard, all read live from the backend.
 
-You can open `frontend/dashboard.html` right now, with no server and no setup,
-and the full engine runs in the page. The only thing it fetches is two web
-fonts from Google Fonts. Everything else is inline.
+The driver dashboard opens standalone with no server (its only external request
+is two web fonts from Google Fonts). The partner console needs the backend.
 
 ## The problem it solves
 
@@ -113,24 +129,25 @@ odd cent in the buffer rather than handing it out.
 ## Architecture
 
 ```
-        Gig payout lands in the Investec account
+        Gig payout lands in each driver's Investec account
                           |
                           v
-   poll transactions  +------------------------------+
-   ----------------->  |  GigGuard backend            |
-   Investec Accounts   |  Express, in memory ledger   |
-   API                 |                              |
-                       |  withhold bufferPercent      |
-                       |  weeklyRelease = buffer/weeks|
-                       +------------------------------+
+   poll transactions  +-------------------------------+   /fleet  +-------------------+
+   ----------------->  |  GigGuard backend             | <------- |  Partner console  |
+   Investec Accounts   |  Express, per driver ledger   | -------> |  drivers + billing|
+   API                 |  persisted to a JSON file     |  /onboard +-------------------+
+                       |                               |
+                       |  withhold bufferPercent       |   /status      +------------------+
+                       |  weeklyRelease = buffer/weeks | <------------- |  Driver dashboard|
+                       |  bill per seat + per payout   | -------------> |  offline or live |
+                       +-------------------------------+  /simulate     +------------------+
                          ^             |
-              /check     |             |   /status
-              /record    |             |   /simulate/income
-                         |             v
-        +----------------------+   +-----------------------+
-        |  Investec card code  |   |  Dashboard (one HTML) |
-        |  beforeTransaction   |   |  sandbox playground   |
-        |  afterTransaction    |   +-----------------------+
+              /check     |             |  cardId maps each tap to a driver
+              /record    |             v
+        +----------------------+
+        |  Investec card code  |
+        |  beforeTransaction   |
+        |  afterTransaction    |
         +----------------------+
                          |
                          v
@@ -188,58 +205,44 @@ off, so you never pass dates by hand.
 
 ## Monetisation
 
-All prices in South African rand. This is a sandbox build, so none of it is
-wired to a payment processor. It is the intended shape of the business, not a
-live billing system.
+All prices in South African rand, all illustrative. The charge is a stub, not a
+live payment integration. But this is no longer just a slide: the partner
+console shows the bill, and the backend takes the per payout fee on every
+smoothed payout, so you can watch the revenue tick up as the demo runs.
 
-### Who pays and why
+### Fleets pay per seat, the main line
 
-The direct payer is the gig worker who has been burned by a blown out feast
-week. The weekly release is the product: a steady amount they can plan around
-instead of a balance that is gone by Wednesday. At R39 a month, Standard costs
-about one declined then regretted impulse buy, which is roughly the thing it
-exists to prevent. Willingness to pay is not even through the month. It peaks
-right after a feast week crash, the first time the buffer carries someone
-through a dry week they would otherwise have struggled with. That is the
-natural moment for an upgrade prompt, a planned go to market mechanic rather
-than something already built.
+The believable payer is not the gig worker, who by definition has the least cash
+to spare. It is the partner who already touches the worker and benefits when the
+worker keeps working: a fleet operator, ride hailing aggregator, gig
+marketplace, or earned wage provider. They offer GigGuard to their drivers as a
+retention perk and pay per active seat, roughly **R25 per active driver per
+month**. A driver whose rent survives a lean week keeps driving, so smoothing is
+a retention tool for the platform, not a favour to the worker, and GigGuard
+reaches drivers through the people who already pay them rather than through
+expensive consumer ads. The partner console (`frontend/partner.html`) bills
+exactly this, and `/fleet/:fleetId` returns the line items.
 
-### Tiers
+### Plus a fee per smoothed payout
 
-| Tier | Price | Intended buyer | What you get |
-| --- | --- | --- | --- |
-| Free | R0 | Anyone trying it | One card, manual buffer percent, weekly release enforced, dashboard. |
-| Pay as you go | R1.50 per payout smoothed | The on ramp for a driver who only pays in weeks money lands | No monthly fee. You pay only when income arrives and gets smoothed. |
-| Standard | R39 per month | The single gig regular, predictable enough to commit to a monthly fee | Automatic income polling, custom buffer and runway, transaction history. |
-| Pro | R99 per month | The multi stream freelancer juggling several income sources | Multiple income streams, runway forecasting, export, priority support. |
+On top of the seat, GigGuard takes a small fee for each payout it smooths,
+**R1.50**, stubbed in `chargeForPayout` where a real build would call Paystack.
+Because no driver money moves, a smoothed payout costs almost nothing to serve
+(one ledger write plus one polled API read), so the fee is effectively all
+margin. Every `/poll` and `/simulate/income` charges it.
 
-Pay as you go is the entry point for exactly the headline user. R1.50 against a
-typical weekly payout is a rounding error, and a weekly paid driver pays only
-about R6 a month: cheaper than Standard, and self selecting for low volume
-users who cannot commit to a fixed monthly debit.
+### A direct consumer on ramp, the secondary line
 
-### Unit economics
+A driver can also pay directly, which is the channel before a fleet deal exists.
+This is the weaker line on purpose (the headline user is cash strapped exactly
+when they need it), so it is priced to self select:
 
-Because GigGuard never moves money, a smoothed payout costs almost nothing to
-serve. It is one ledger write plus one polled API read, with no payment rail
-fee on the smoothing itself. So the R1.50 per payout price is effectively all
-margin, and the marginal cost of an extra user is dominated by the Investec API
-call, not by money movement.
-
-### Who actually pays at scale
-
-Gig workers are, by definition, the segment least able to sustain a fixed
-monthly consumer subscription, so a pure direct to driver model is the least
-believable way to collect money at volume. The stronger channel is a partner
-who already touches these workers and can pay per active seat. Fleet operators,
-ride hailing aggregators, gig marketplaces, and earned wage or payroll
-providers can offer GigGuard as a white labelled retention perk at roughly R25
-per active driver per month (an illustrative intended rate, not a contract). A
-driver whose rent survives a lean week keeps driving, so smoothing is a
-retention tool for the platform, not just a favour to the worker. The
-distribution win is that GigGuard reaches drivers through the platforms that
-already pay them, rather than buying expensive consumer install ads, which
-keeps acquisition cheap enough for a sub R40 direct price to make sense.
+| Tier | Price | Intended buyer |
+| --- | --- | --- |
+| Free | R0 | Anyone trying it, one card, the cap enforced |
+| Pay as you go | R1.50 per payout | A driver who only pays in weeks money actually lands, about R6 a month |
+| Standard | R39 per month | A single gig regular, predictable enough to commit |
+| Pro | R99 per month | A multi stream freelancer with several income sources |
 
 ## Project structure
 
@@ -248,12 +251,14 @@ GigGuard/
   card-code/
     main.js          Deployed into the Investec card IDE (before/after transaction)
   backend/
-    server.js        Express API: /check /record /poll /setup /status /simulate/income
+    server.js        Express API: card hooks, poll, status, fleet, onboard, billing
     package.json
     test.js          Pure logic test suite, no server needed
+    data/            Persisted store (gitignored, created on first run)
   frontend/
-    dashboard.html   Self contained interactive dashboard, one file
-  docs/              Screenshots
+    dashboard.html   Driver dashboard, standalone offline or live against the backend
+    partner.html     Partner / fleet console, reads live from the backend
+  docs/              Screenshots and demo GIFs
   .env.example
   knowledge          Gotchas and learnings from building this
   README.md
@@ -330,6 +335,21 @@ curl -X POST localhost:3000/check \
   -d '{"amountRands": 7467.83, "merchant": "Game"}'
 ```
 
+Onboard a driver into a fleet, then read the fleet's bill (every driver plus the
+per seat and per payout revenue):
+
+```
+curl -X POST localhost:3000/onboard \
+  -H 'content-type: application/json' \
+  -H 'x-api-key: your-gigguard-api-key' \
+  -d '{"driverName": "Lerato Mthembu", "cardId": "card-lerato", "fleetId": "bolt-cpt"}'
+
+curl localhost:3000/fleet/bolt-cpt -H 'x-api-key: your-gigguard-api-key'
+```
+
+State persists to `backend/data/store.json` (gitignored), so a restart keeps the
+fleet and its ledgers. Delete that file to reseed the demo fleet from scratch.
+
 ### 3. Card IDE
 
 In the Investec programmable banking card IDE:
@@ -341,14 +361,14 @@ In the Investec programmable banking card IDE:
    * `GIGGUARD_API_KEY` set to the same value you put in the backend `.env`.
 3. Save and deploy. Now every tap of the card checks the weekly release first.
 
-### 4. Dashboard
+### 4. Driver dashboard
 
-Open `frontend/dashboard.html` in a browser. It needs no server and makes no
-backend calls, and its only external request is two web fonts from Google
-Fonts. The dashboard is laid out like a weekly statement: one big
-"available to spend this week" figure on a paper card, with the buffer, the
-weekly release meter, and the runway responding live as you simulate income
-and card taps with the sliders and buttons.
+Open `frontend/dashboard.html` in a browser. With no backend it runs a built in
+engine offline and the badge reads Sandbox; with the backend running it auto
+detects it, flips the badge to Live, and drives the real API for income, card
+checks, and settings. It is laid out like a weekly statement: one big "available
+to spend this week" figure on a paper card, with the buffer, the weekly release
+meter, and the runway responding as you simulate income and card taps.
 
 A healthy week:
 
@@ -359,6 +379,14 @@ notice appears:
 
 ![GigGuard declining an overspend](docs/dashboard-decline.png)
 
+### 5. Partner console
+
+Open `frontend/partner.html` with the backend running. This is the fleet
+operator's view: every driver's buffer and weekly release, and the monthly bill
+broken into per active seat and per payout smoothing fees. Onboard a driver or
+simulate a payout from the page and watch the bill move. It points at
+`http://localhost:3000` by default; override with `?api=` and `?key=` in the URL.
+
 ## Tests
 
 The logic suite is pure arithmetic with no server and no network:
@@ -368,11 +396,12 @@ cd backend
 node test.js
 ```
 
-It prints a tick or a cross for each of the eleven checks and exits non zero if
+It prints a tick or a cross for each of the fourteen checks and exits non zero if
 any fail, so it drops straight into CI. The checks cover zero state, the
-withholding split, status readout, approvals, the decline at the boundary, a
-one cent overspend, stacked income, a zero credit, a different buffer and
-runway setting, and a double tap that cannot both clear the weekly release.
+withholding split, status readout, approvals, the decline at the boundary, a one
+cent overspend, stacked income, a zero credit, a different buffer and runway
+setting, a double tap that cannot both clear the weekly release, the R1.50 per
+payout fee, and the per seat fleet billing.
 
 ## What it does and does not do
 
@@ -392,10 +421,13 @@ What it does:
 
 What it does not do:
 
-* **No money moves.** It never moves, sweeps, transfers, holds, or escrows any
-  money. The buffer is a ledger, a number that says how much of your own income
-  you have chosen not to spend yet. Your cash stays in your own Investec account
-  the whole time. GigGuard is not a deposit taking, custody, or payment business.
+* **No driver money moves.** It never moves, sweeps, transfers, holds, or
+  escrows a driver's money. The buffer is a ledger, a number that says how much
+  of their own income they have chosen not to spend yet; their cash stays in
+  their own Investec account the whole time. The only money that changes hands is
+  our own fee, per seat and per payout, and in this build even that is a stub,
+  not a live charge. GigGuard is not a deposit taking, custody, or payment
+  business.
 * **Not a vault.** Because the funds never leave your own account, it is a self
   imposed limit on this one card, a strong nudge rather than a lock. Someone
   determined to spend the withheld money another way still can.
@@ -422,10 +454,11 @@ Other guardrails:
 
 Privacy and data:
 
-* Per user, GigGuard stores the Investec client id, secret, api key, and account
-  id you provide, plus the buffer ledger and week state. In this demo all of that
-  lives in memory only and is wiped on every server restart. Nothing is persisted
-  to disk or shared with third parties beyond the Investec API calls the product
+* Per driver, GigGuard stores the Investec client id, secret, api key, and
+  account id provided, plus the buffer ledger and week state. It persists to a
+  gitignored JSON file (`backend/data/store.json`) so a restart does not wipe a
+  ledger; a real build would use a database with the secrets encrypted at rest.
+  Nothing is shared with third parties beyond the Investec API calls the product
   is built on.
 * The data routes (`/setup`, `/status`, `/poll`, `/simulate/income`) require the
   shared `GIGGUARD_API_KEY`. The card hooks (`/check`, `/record`) use the same key

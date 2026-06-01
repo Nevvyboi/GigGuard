@@ -6,6 +6,10 @@ node_modules/
 backend/.env
 *.local
 
+# persisted store (holds driver ledgers and Investec creds), never commit
+backend/data/
+data/store.json
+
 # logs and os cruft
 *.log
 npm-debug.log*

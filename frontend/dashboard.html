@@ -238,7 +238,7 @@
       <h1>Gig<span class="dot">G</span>uard</h1>
     </div>
     <div class="mast-right">
-      <span class="tag">Sandbox</span>
+      <span class="tag" id="mode-tag">Sandbox</span>
       <div class="issue">Statement <span id="stmt-no">No. 00</span></div>
       <div class="issue-date" id="stmt-date">Week of</div>
     </div>
@@ -346,6 +346,24 @@
   };
 
   const rands = (cents) => (cents / 100).toFixed(2);
+
+  // Live mode. If a GigGuard backend is reachable, this page drives it for real
+  // (income, card checks, settings) and shows the backend's state. If not, it
+  // falls back to the standalone engine below, so the file still opens on its
+  // own with no server. Override with ?api=... ?key=... ?user=...
+  const params = new URLSearchParams(location.search);
+  const BACKEND = params.get('api') || 'http://localhost:3000';
+  const KEY = params.get('key') || 'gg-sandbox-demo-key';
+  const USER = params.get('user') || 'demo';
+  let live = false;
+  async function api(path, opts) {
+    const r = await fetch(BACKEND + path, {
+      ...(opts || {}),
+      headers: { 'content-type': 'application/json', 'x-api-key': KEY, ...((opts && opts.headers) || {}) },
+    });
+    if (!r.ok) throw new Error('http ' + r.status);
+    return r.json();
+  }
 
   const payers = ['Uber payout', 'Bolt earnings', 'Mr D Food', 'Freelance invoice', 'Upwork client', 'Gumtree gig'];
   const shops = ['Pick n Pay', 'Shell garage', 'Uber Eats', 'Vodacom', 'Checkers', 'Takealot', 'Steers', 'Clicks'];
@@ -499,17 +517,83 @@
   })();
 
   // -----------------------------------------------------------------
+  // Live mode: pull and drive the real backend, falling back to the engine
+  // above when there is no server to talk to.
+  // -----------------------------------------------------------------
+  const cents = (s) => Math.round(parseFloat(s) * 100);
+
+  function setMode(on) {
+    live = on;
+    const t = $('mode-tag');
+    t.textContent = on ? 'Live' : 'Sandbox';
+    t.style.color = on ? 'var(--gold)' : 'var(--muted)';
+    t.style.borderColor = on ? 'var(--gold)' : 'var(--line-strong)';
+  }
+
+  async function refreshLive() {
+    const st = await api('/status/' + USER);
+    S.bufferBalance = cents(st.bufferBalance);
+    S.weeklyRelease = cents(st.weeklyRelease);
+    S.spentThisWeek = cents(st.spentThisWeek);
+    S.bufferPercent = st.bufferPercent;
+    if (st.minWeeks) S.minWeeks = st.minWeeks;
+    // the allocation split needs total income; the backend only keeps the
+    // buffer, so back it out from the percent (buffer is bufferPercent of income)
+    S.totalIncome = S.bufferPercent > 0 ? Math.round(S.bufferBalance / (S.bufferPercent / 100)) : 0;
+    $('sl-buffer').value = S.bufferPercent;
+    $('lbl-buffer').textContent = S.bufferPercent + '%';
+    $('sl-weeks').value = S.minWeeks;
+    $('lbl-weeks').textContent = S.minWeeks + (S.minWeeks === 1 ? ' week' : ' weeks');
+    render();
+  }
+
+  async function liveIncome(amountCents, who) {
+    try {
+      const r = await api('/simulate/income', { method: 'POST', body: JSON.stringify({ userId: USER, amountRands: amountCents / 100 }) });
+      await refreshLive();
+      addLog({ merchant: who || pick(payers), note: 'R' + r.skimmedToBuffer + ' to buffer, R' + r.feeCharged + ' fee', amountCents, dir: 'in', status: 'income' });
+      renderLog();
+      toast('Income of R' + rands(amountCents) + ' received.', 'good');
+    } catch (e) { toast('Backend error, is it running?', 'bad'); }
+  }
+
+  async function liveSpend(amountCents, where) {
+    where = where || pick(shops);
+    try {
+      const r = await api('/check', { method: 'POST', body: JSON.stringify({ amountRands: amountCents / 100, merchant: where, cardId: 'card-' + USER }) });
+      if (r.approved === false) {
+        addLog({ merchant: where, note: r.reason, amountCents, dir: 'out', status: 'declined' });
+        renderLog();
+        toast('Declined. ' + r.reason, 'bad');
+        return;
+      }
+      // the card's afterTransaction settles an approved debit; do the same here
+      await api('/record', { method: 'POST', body: JSON.stringify({ type: 'DEBIT', amount: amountCents, status: 'APPROVED', cardId: 'card-' + USER }) });
+      await refreshLive();
+      addLog({ merchant: where, note: r.reason, amountCents, dir: 'out', status: 'approved' });
+      renderLog();
+      toast('Approved R' + rands(amountCents) + ' at ' + where + '.', 'good');
+    } catch (e) { toast('Backend error, is it running?', 'bad'); }
+  }
+
+  async function liveSetup() {
+    try { await api('/setup', { method: 'POST', body: JSON.stringify({ userId: USER, bufferPercent: S.bufferPercent, minWeeks: S.minWeeks }) }); await refreshLive(); }
+    catch (e) { toast('Backend error.', 'bad'); }
+  }
+
+  // -----------------------------------------------------------------
   // Wiring
   // -----------------------------------------------------------------
   $('sl-buffer').addEventListener('input', function (e) {
     S.bufferPercent = Number(e.target.value);
     $('lbl-buffer').textContent = S.bufferPercent + '%';
-    render();
+    if (live) liveSetup(); else render();
   });
 
   $('sl-weeks').addEventListener('input', function (e) {
     S.minWeeks = Number(e.target.value);
     $('lbl-weeks').textContent = S.minWeeks + (S.minWeeks === 1 ? ' week' : ' weeks');
+    if (live) { liveSetup(); return; }
     S.weeklyRelease = Math.floor(S.bufferBalance / S.minWeeks);
     render();
   });
@@ -517,24 +601,31 @@
   $('btn-income').addEventListener('click', function () {
     const v = Number($('in-income').value);
     if (!v || v <= 0) { toast('Enter an income amount first.', 'bad'); return; }
-    receiveIncome(Math.round(v * 100));
+    (live ? liveIncome : receiveIncome)(Math.round(v * 100));
     $('in-income').value = '';
   });
 
   document.querySelectorAll('.presets button').forEach(function (b) {
-    b.addEventListener('click', function () { receiveIncome(Number(b.dataset.amt) * 100); });
+    b.addEventListener('click', function () { (live ? liveIncome : receiveIncome)(Number(b.dataset.amt) * 100); });
   });
 
   $('btn-spend').addEventListener('click', function () {
     const v = Number($('in-spend').value);
     if (!v || v <= 0) { toast('Enter a spend amount first.', 'bad'); return; }
-    attemptSpend(Math.round(v * 100));
+    (live ? liveSpend : attemptSpend)(Math.round(v * 100));
     $('in-spend').value = '';
   });
 
-  $('btn-reset').addEventListener('click', resetAll);
+  $('btn-reset').addEventListener('click', function () {
+    if (live) { S.log = []; refreshLive(); toast('Cleared the log. Backend state is unchanged in live mode.', 'good'); }
+    else resetAll();
+  });
 
-  render();
+  // on load, try the backend; if it answers, go live, otherwise run standalone
+  (async function boot() {
+    try { await refreshLive(); setMode(true); }
+    catch (e) { setMode(false); render(); }
+  })();
 </script>
 </body>
 </html>

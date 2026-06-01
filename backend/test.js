@@ -87,6 +87,25 @@ function recordSpend(user, amountCents) {
   else if (user.holds.length) user.holds.shift();
 }
 
+// Billing, the only place money actually changes hands. Same numbers as the
+// backend: a R1.50 stubbed fee per smoothed payout, and R25 per active driver
+// per month that the fleet pays.
+const payoutFeeCents = 150;
+const seatPriceCents = 2500;
+
+function chargeForPayout(user) {
+  user.payoutsSmoothed = (user.payoutsSmoothed || 0) + 1;
+  user.revenueCents = (user.revenueCents || 0) + payoutFeeCents;
+  return payoutFeeCents;
+}
+
+function fleetBilling(drivers) {
+  const active = drivers.filter((u) => u.bufferBalance > 0);
+  const seatRevenue = active.length * seatPriceCents;
+  const smoothingRevenue = drivers.reduce((s, u) => s + (u.revenueCents || 0), 0);
+  return { activeDrivers: active.length, seatRevenue, smoothingRevenue, total: seatRevenue + smoothingRevenue };
+}
+
 // What the dashboard / status endpoint reports. Money fields come out
 // as rand strings, runway as a one decimal week count.
 function statusOf(user) {
@@ -218,6 +237,34 @@ expect(
   '11 two taps in the same blink cannot both clear the release',
   tapA.approved === true && tapB.approved === false,
   `first approved, second saw only R${rands(tapB.remaining)} free`
+);
+
+// 12. The payment stub takes R1.50 per smoothed payout. That is our revenue.
+const earner = freshUser(30, 4);
+takeIncome(earner, 700000); chargeForPayout(earner);
+takeIncome(earner, 60000); chargeForPayout(earner);
+expect(
+  '12 paystack stub charges R1.50 per smoothed payout',
+  earner.revenueCents === 300 && earner.payoutsSmoothed === 2,
+  `R${rands(earner.revenueCents)} over ${earner.payoutsSmoothed} payouts`
+);
+
+// 13 and 14. A fleet of four drivers, three earning and one idle. The partner
+// pays R25 per active seat plus the smoothing fees.
+const dA = freshUser(30, 4); takeIncome(dA, 700000); chargeForPayout(dA);
+const dB = freshUser(30, 4); takeIncome(dB, 500000); chargeForPayout(dB);
+const dC = freshUser(30, 4); takeIncome(dC, 900000); chargeForPayout(dC);
+const dIdle = freshUser(30, 4); // never earned, buffer 0, not an active seat
+const bill = fleetBilling([dA, dB, dC, dIdle]);
+expect(
+  '13 fleet bills R25 per active seat, three of four active',
+  bill.activeDrivers === 3 && bill.seatRevenue === 7500,
+  `active=${bill.activeDrivers} seats=R${rands(bill.seatRevenue)}`
+);
+expect(
+  '14 fleet revenue is seats plus the per payout smoothing fees',
+  bill.smoothingRevenue === 450 && bill.total === 7950,
+  `smoothing=R${rands(bill.smoothingRevenue)} total=R${rands(bill.total)}`
 );
 
 console.log(`\n${passed} passed, ${failed} failed`);
