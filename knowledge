@@ -1,0 +1,95 @@
+GigGuard knowledge file
+========================
+
+Field notes from building this. Mostly the Investec specific things that
+cost me time, plus a couple of money handling rules I do not want anyone
+to quietly break later. Read this before you touch the card code.
+
+
+1. beforeTransaction has roughly a 2 second budget
+   The Investec card hook gives you about 2 seconds to make a decision.
+   If your code takes longer, or throws, the platform stops waiting and
+   approves the transaction itself. So a slow backend does not block the
+   card, it silently lets spends through. Keep /check fast and dumb. All
+   the heavy lifting (polling, token refresh) happens elsewhere.
+
+
+2. The token endpoint and the data endpoint live on different hosts
+   OAuth tokens come from identity.secure.investec.com/connect/token.
+   Account and transaction data come from a separate API host. In the
+   sandbox that host is openapisandbox.investec.com. In production it is
+   openapi.investec.com. Easy to mix up. If you get a token fine but then
+   every data call 404s, check which host you are hitting.
+
+
+3. The API talks rands, the card talks cents
+   This is the one that will bite you. The transactions API returns the
+   amount as a plain number in rands, for example 8000 or 152.75. The
+   card hook gives you centsAmount, already in cents. Internally GigGuard
+   is cents everywhere. So when a credit comes off the poll we multiply by
+   100 (Math.round to be safe about float dust), and when the card hands
+   us centsAmount we use it as is. Get this wrong and you are off by 100x.
+
+
+4. In the card IDE, environment variables are env.NAME not process.env
+   The card code does not run in Node. There is no process, no require,
+   no npm. Environment variables are read off a global called env, so it
+   is env.GIGGUARD_WEBHOOK_URL and env.GIGGUARD_API_KEY. Paste those two
+   into the IDE settings panel, not into a .env file. Only fetch and
+   console.log are reliably available in there.
+
+
+5. afterTransaction can fire for things that did not actually spend
+   Depending on card settings you may get an after hook for declines and
+   reversals as well as clean approvals. If you blindly add every after
+   hook to the weekly total, a declined R900 would eat R900 of someone's
+   release that they never spent. GigGuard only records an approved debit,
+   and the backend double checks status and type before it touches the
+   ledger. The card code keeps declines on a separate afterDecline path
+   that does nothing but log.
+
+
+6. Income detection is polling, not a webhook
+   Investec will push you card transaction hooks, but plain incoming
+   credits (a gig payout landing in the account) do not come with a
+   webhook in the sandbox. So we poll the transactions API on a schedule.
+   That means income is detected a little late, whenever the next poll
+   runs, not the instant it lands. Fine for smoothing. Just do not promise
+   anyone real time income alerts.
+
+
+7. Money is integer cents, full stop
+   No floats for money, ever. toBuffer is Math.floor(amount * pct / 100).
+   weeklyRelease is Math.floor(buffer / weeks). Flooring means a cent or
+   two stays parked in the buffer rather than being released, which is the
+   safe direction to round. test.js locks all of this in. If you ever see
+   a value like 599.9999 you have let a float in somewhere, go find it.
+
+
+8. When in doubt, approve
+   Both the card code and the backend fail open. Backend unreachable,
+   timeout, bad JSON, wrong api key, all of it returns approved true or
+   lets the platform default through. The reasoning: GigGuard is a
+   budgeting helper, not a fraud system. Wrongly declining someone's only
+   card at a till is a real world harm. Wrongly approving one spend just
+   means the weekly cap was soft that one time. Pick the smaller harm.
+
+
+9. Lazy week reset is on purpose
+   There is no cron resetting the weekly spend at midnight on Monday. We
+   check the elapsed time whenever the card or the dashboard touches the
+   user, and if a full seven days have passed we zero spentThisWeek and
+   start a fresh week from that moment. Simpler, no scheduler to babysit,
+   and the only cost is the reset happens on first use of the new week
+   rather than exactly at the boundary. Nobody cares about that gap.
+
+
+10. The buffer is a ledger, not an account
+    Important and not just a technicality. GigGuard never moves money. The
+    buffer is a number we keep that says how much of your own income we
+    are suggesting you not spend yet. The cash stays in your own Investec
+    account the whole time. We are not holding funds, not running escrow,
+    not a third party custodian. That keeps this firmly a budgeting tool
+    rather than a deposit taking or payment business, which is a very
+    different regulatory conversation in South Africa. If you ever change
+    this to actually sweep money somewhere, stop and get advice first.
