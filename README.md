@@ -139,10 +139,48 @@ odd cent in the buffer rather than handing it out.
 
 | Investec surface | How GigGuard uses it |
 | --- | --- |
-| OAuth token endpoint (`identity.secure.investec.com`) | Client credentials grant with the `accounts` scope. Token is cached until just before it expires. |
+| OAuth token endpoint (`openapisandbox.investec.com/identity/v2/oauth2/token`) | Client credentials grant with the `accounts` scope. Token is cached until just before it expires. The live host is `identity.secure.investec.com/connect/token`. |
 | Accounts transactions API (`openapisandbox.investec.com`) | Polled on a schedule to spot incoming CREDITs, which is how income is detected. |
 | Card `beforeTransaction` hook | Calls the backend `/check` and declines the spend when it would break the weekly release. |
 | Card `afterTransaction` hook | Calls the backend `/record` so approved debits are added to this week's running total. |
+
+## Live sandbox run
+
+This is not a mock. GigGuard runs against the real Investec sandbox. The shared
+public sandbox credentials ship in `.env.example`, so you can clone, start the
+backend, and poll the sandbox "Mr Smith" account yourself. Every number below
+came back from the live Investec API.
+
+```
+# 1. Poll the real account: OAuth, then the transactions API
+$ curl -X POST localhost:3000/poll -H 'x-api-key: ...' \
+       -d '{"fromDate":"2026-03-01","toDate":"2026-06-01"}'
+{
+  "creditsCounted": 13,
+  "skimmedToBuffer": "27871.33",
+  "bufferBalance":  "27871.33",
+  "weeklyRelease":  "6967.83",
+  "window": { "fromDate": "2026-03-01", "toDate": "2026-06-01" }
+}
+
+# 2. Thirteen lumpy real credits (STANSAL, STANCOM, refunds, interest)
+#    are now one steady weekly release
+$ curl localhost:3000/status/demo -H 'x-api-key: ...'
+{
+  "bufferBalance":     "27871.33",
+  "weeklyRelease":     "6967.83",
+  "remainingThisWeek": "6967.83",
+  "runwayWeeks":       "4.0"
+}
+
+# 3. The card beforeTransaction hook checks that weekly release
+$ /check  R7,467.83  ->  { "approved": false, "reason": "Over the weekly release. R6967.83 left, this spend is R7467.83." }
+$ /check  R250.00    ->  { "approved": true,  "reason": "Within the weekly release. R6717.83 left after this." }
+```
+
+The poll window is explicit here because the sandbox demo data sits a few months
+in the past. In production the poll runs on a schedule from wherever it last left
+off, so you never pass dates by hand.
 
 ## Monetisation
 

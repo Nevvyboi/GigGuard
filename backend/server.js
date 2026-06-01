@@ -20,11 +20,16 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
-// Investec endpoints. The token comes from their identity host, the
-// account data from the sandbox host. Swap the sandbox host for the
-// live one (openapi.investec.com) when you go to production.
-const INVESTEC_TOKEN_URL = 'https://identity.secure.investec.com/connect/token';
-const INVESTEC_API_BASE = 'https://openapisandbox.investec.com/za/pb/v1';
+// Investec endpoints. In the sandbox the token and the data both come from
+// the openapisandbox host, and the token path is /identity/v2/oauth2/token.
+// This trips people up: the live token endpoint is a different host entirely
+// (identity.secure.investec.com/connect/token), so sandbox code pointed at the
+// live host gets a token error and never reaches the data. For production,
+// swap both constants for the live hosts. Override via env if you like.
+const INVESTEC_TOKEN_URL =
+  process.env.INVESTEC_TOKEN_URL || 'https://openapisandbox.investec.com/identity/v2/oauth2/token';
+const INVESTEC_API_BASE =
+  process.env.INVESTEC_API_BASE || 'https://openapisandbox.investec.com/za/pb/v1';
 
 // ---------------------------------------------------------------------
 // In memory user store. This is a demo so a Map is fine. In production
@@ -80,6 +85,7 @@ users.set(DEMO_ID, makeUser({
   investecClientId: process.env.INVESTEC_CLIENT_ID || '',
   investecSecret: process.env.INVESTEC_SECRET || '',
   investecApiKey: process.env.INVESTEC_API_KEY || '',
+  accountId: process.env.INVESTEC_ACCOUNT_ID || '',
 }));
 
 // The card's hooks do not send us a userId (the card does not know who
@@ -378,8 +384,11 @@ app.post('/poll', requireApiKeyStrict, async (req, res) => {
     return res.status(400).json({ error: 'run /setup with Investec credentials first' });
   }
 
-  const fromDate = user.lastPollDate || isoDate(daysAgo(7));
-  const toDate = isoDate(new Date());
+  // Default to wherever we last polled, or a week back on the first run. The
+  // caller can override the window (handy for a first backfill, or for the
+  // sandbox whose demo data sits months in the past).
+  const fromDate = (req.body && req.body.fromDate) || user.lastPollDate || isoDate(daysAgo(7));
+  const toDate = (req.body && req.body.toDate) || isoDate(new Date());
 
   let transactions;
   try {

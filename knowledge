@@ -14,12 +14,16 @@ to quietly break later. Read this before you touch the card code.
    the heavy lifting (polling, token refresh) happens elsewhere.
 
 
-2. The token endpoint and the data endpoint live on different hosts
-   OAuth tokens come from identity.secure.investec.com/connect/token.
-   Account and transaction data come from a separate API host. In the
-   sandbox that host is openapisandbox.investec.com. In production it is
-   openapi.investec.com. Easy to mix up. If you get a token fine but then
-   every data call 404s, check which host you are hitting.
+2. Sandbox and live use different token endpoints, and this one bit us
+   In the sandbox the token AND the data both come from
+   openapisandbox.investec.com, and the token path is
+   /identity/v2/oauth2/token. In production the token comes from a different
+   host entirely, identity.secure.investec.com/connect/token, with data on
+   openapi.investec.com. We learned this the direct way: an early version
+   pointed the sandbox at the live token host, every poll failed auth, and the
+   buffer never filled. If a token call fails or every data call 404s, the
+   first thing to check is which host and path you are hitting. The two
+   constants live at the top of server.js and can be overridden by env.
 
 
 3. The API talks rands, the card talks cents
