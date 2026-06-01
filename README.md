@@ -153,6 +153,8 @@ public sandbox credentials ship in `.env.example`, so you can clone, start the
 backend, and poll the sandbox "Mr Smith" account yourself. Every number below
 came back from the live Investec API.
 
+![GigGuard live sandbox loop: real OAuth, then 13 real credits polled into the buffer, then the card declining an overspend](docs/live-loop-demo.gif)
+
 ```
 # 1. Poll the real account: OAuth, then the transactions API
 $ curl -X POST localhost:3000/poll -H 'x-api-key: ...' \
