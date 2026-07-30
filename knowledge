@@ -23,7 +23,7 @@ to quietly break later. Read this before you touch the card code.
    pointed the sandbox at the live token host, every poll failed auth, and the
    buffer never filled. If a token call fails or every data call 404s, the
    first thing to check is which host and path you are hitting. The two
-   constants live at the top of server.js and can be overridden by env.
+   defaults live in app/config.py and can be overridden by env.
 
 
 3. The API talks rands, the card talks cents
@@ -31,8 +31,10 @@ to quietly break later. Read this before you touch the card code.
    amount as a plain number in rands, for example 8000 or 152.75. The
    card hook gives you centsAmount, already in cents. Internally GigGuard
    is cents everywhere. So when a credit comes off the poll we multiply by
-   100 (Math.round to be safe about float dust), and when the card hands
-   us centsAmount we use it as is. Get this wrong and you are off by 100x.
+   100 and round rather than truncate (152.74999 off the wire is a real
+   thing, and int() would quietly lose a cent on every payout), and when
+   the card hands us centsAmount we use it as is. Get this wrong and you
+   are off by 100x. See to_cents in app/investec.py.
 
 
 4. In the card IDE, environment variables are env.NAME not process.env
@@ -63,11 +65,13 @@ to quietly break later. Read this before you touch the card code.
 
 
 7. Money is integer cents, full stop
-   No floats for money, ever. toBuffer is Math.floor(amount * pct / 100).
-   weeklyRelease is Math.floor(buffer / weeks). Flooring means a cent or
-   two stays parked in the buffer rather than being released, which is the
-   safe direction to round. test.js locks all of this in. If you ever see
-   a value like 599.9999 you have let a float in somewhere, go find it.
+   No floats for money, ever. to_buffer is amount * pct // 100.
+   weekly_release is buffer // weeks. Python's // on ints is exactly the
+   floor we want, no float ever enters the expression. Flooring means a
+   cent or two stays parked in the buffer rather than being released,
+   which is the safe direction to round. tests/test_engine.py locks all of
+   this in against the real engine, not a copy of it. If you ever see a
+   value like 599.9999 you have let a float in somewhere, go find it.
 
 
 8. When in doubt, approve
@@ -107,8 +111,12 @@ to quietly break later. Read this before you touch the card code.
     holds the approved amount and counts it against remaining until /record
     settles it or the hold ages out (we use roughly the 2 second hook budget
     plus a margin). The holds have to expire on their own, otherwise an
-    approve that never gets a matching record would wedge the cap shut. This
-    narrows the race, it does not make enforcement atomic. Do not advertise
-    the cap as unbreakable: fail open and a missing record still let the
-    total drift. There is a test that fires two checks before any record and
-    asserts the second is declined.
+    approve that never gets a matching record would wedge the cap shut.
+    Reservations alone only narrow the race, so the reserve and the settle
+    now both happen under a per driver asyncio lock (app/store.py), which
+    makes the decision atomic within one process. That is still not atomic
+    across several processes: run more than one instance and you need a
+    shared lock, not a local one. Either way, do not advertise the cap as
+    unbreakable, because fail open and a missing record still let the total
+    drift. There is a test that fires two checks before any record and
+    asserts the second is declined, at both the engine and the HTTP level.

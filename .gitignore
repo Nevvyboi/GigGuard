@@ -1,5 +1,11 @@
-# dependencies
-node_modules/
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
 
 # real secrets, never commit these
 .env
@@ -12,7 +18,6 @@ data/store.json
 
 # logs and os cruft
 *.log
-npm-debug.log*
 .DS_Store
 
 # editor bits
