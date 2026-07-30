@@ -326,6 +326,7 @@ GigGuard/
     dashboard.html     Driver dashboard, standalone offline or live against the backend
     partner.html       Partner / fleet console, reads live from the backend
   docs/                Screenshots and demo GIFs
+    linkedin/          The same four moments framed 16:9 for portfolio media slots
   .env.example
   knowledge            Gotchas and learnings from building this
   README.md
